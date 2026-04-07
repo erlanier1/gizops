@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth:*)",
+      "Bash(claude mcp:*)",
+      "Bash(node -e \"const fs=require\\(''fs''\\); [''app/page.tsx'',''app/dashboard/page.tsx'',''app/login/page.tsx'',''app/layout.tsx'',''middleware.ts''].forEach\\(f => { try { const c=fs.readFileSync\\(f,''utf8''\\); const hasExport = c.includes\\(''export default''\\); console.log\\(f, hasExport ? ''✓ default export'' : ''✗ NO DEFAULT EXPORT''\\); } catch\\(e\\) { console.log\\(f, ''✗ MISSING''\\); } }\\);\")",
+      "Bash(npx tsc:*)",
+      "Bash(npx next:*)"
+    ]
+  }
+}

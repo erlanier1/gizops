@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background:          240 13% 8%;     /* #0F1117 */
+    --foreground:          240 10% 96%;    /* #F0F0F5 */
+    --card:                240 12% 17%;    /* #23232F */
+    --card-foreground:     240 10% 96%;
+    --popover:             240 12% 17%;
+    --popover-foreground:  240 10% 96%;
+    --primary:             20 82% 50%;     /* #E8521A ember */
+    --primary-foreground:  240 10% 96%;
+    --secondary:           240 10% 20%;    /* #2A2A38 */
+    --secondary-foreground: 240 10% 96%;
+    --muted:               240 10% 20%;
+    --muted-foreground:    240 6% 60%;     /* #8B8B9E */
+    --accent:              20 82% 50%;
+    --accent-foreground:   240 10% 96%;
+    --destructive:         0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --border:              240 10% 22%;    /* #2E2E3A */
+    --input:               240 10% 22%;
+    --ring:                20 82% 50%;
+    --radius:              0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-coal text-cream;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar       { width: 6px; }
+::-webkit-scrollbar-track { background: #0F1117; }
+::-webkit-scrollbar-thumb { background: #2E2E3A; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #E8521A; }
