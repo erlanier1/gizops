@@ -82,8 +82,8 @@ function editableRoles(callerRole: Role, targetRole: Role): Role[] {
 function Avatar({ name, role, size = 9 }: { name: string; role: Role; size?: number }) {
   return (
     <div
-      className={`flex h-${size} w-${size} shrink-0 items-center justify-center rounded-full text-xs font-bold text-white`}
-      style={{ backgroundColor: ROLE_COLOR[role] }}
+      className="flex shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+      style={{ backgroundColor: ROLE_COLOR[role], width: `${size * 0.25}rem`, height: `${size * 0.25}rem` }}
     >
       {initials(name)}
     </div>
@@ -176,14 +176,19 @@ export default function TeamPage() {
   const handleRemove = async (member: TeamMember) => {
     if (!window.confirm(`Remove ${member.full_name} from GizOps? This cannot be undone.`)) return;
     setBusy(b => ({ ...b, [member.id]: true }));
-    const res = await fetch(`/api/team/${member.id}`, { method: 'DELETE' });
-    const body = await res.json();
-    if (!res.ok) {
-      setToast({ message: body.error ?? 'Failed to remove user.', type: 'error' });
+    try {
+      const res = await fetch(`/api/team/${member.id}`, { method: 'DELETE' });
+      const body = await res.json();
+      if (!res.ok) {
+        setToast({ message: body.error ?? 'Failed to remove user.', type: 'error' });
+      } else {
+        setMembers(prev => prev.filter(m => m.id !== member.id));
+        setToast({ message: `${member.full_name} removed.`, type: 'success' });
+      }
+    } catch {
+      setToast({ message: 'Failed to remove user.', type: 'error' });
+    } finally {
       setBusy(b => ({ ...b, [member.id]: false }));
-    } else {
-      setMembers(prev => prev.filter(m => m.id !== member.id));
-      setToast({ message: `${member.full_name} removed.`, type: 'success' });
     }
   };
 

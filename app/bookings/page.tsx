@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { PageHeader } from '@/components/page-header';
-import { BookingModal } from '@/components/bookings/booking-modal';
+import { BookingModal, Booking } from '@/components/bookings/booking-modal';
 import { Toast } from '@/components/ui/toast';
 import { ManagerAndAbove, OwnerOnly } from '@/components/RoleGuard';
 import { useUser } from '@/lib/auth-context';
@@ -60,7 +60,7 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<DBBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<DBBooking | null>(null);
+  const [editing, setEditing] = useState<Booking | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const fetch = useCallback(async () => {
@@ -89,10 +89,20 @@ export default function BookingsPage() {
 
   const openEdit = (b: DBBooking) => {
     setEditing({
-      ...b,
-      guest_count: b.guest_count?.toString() as any,
-      quote_amount: b.quote_amount?.toString() as any,
-      deposit_amount: b.deposit_amount?.toString() as any,
+      id: b.id,
+      client_name: b.client_name,
+      client_email: b.client_email ?? '',
+      client_phone: b.client_phone ?? '',
+      event_date: b.event_date ?? '',
+      event_time: b.event_time ?? '',
+      event_location: b.event_location ?? '',
+      event_type: b.event_type ?? 'catering',
+      guest_count: b.guest_count?.toString() ?? '',
+      package_description: b.package_description ?? '',
+      quote_amount: b.quote_amount?.toString() ?? '',
+      deposit_amount: b.deposit_amount?.toString() ?? '',
+      notes: b.notes ?? '',
+      status: b.status,
     });
     setModalOpen(true);
   };
@@ -239,7 +249,7 @@ export default function BookingsPage() {
         </div>
       )}
 
-      <BookingModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={handleSaved} booking={editing as any} />
+      <BookingModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={handleSaved} booking={editing} />
       {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
     </div>
   );
