@@ -38,7 +38,7 @@ export async function POST(req) {
       },
     });
 
-    return Response.json({ sessionId: session.id });
+    return Response.json({ sessionId: session.id, url: session.url });
   } catch (error) {
     console.error('Stripe error:', error);
     return Response.json(

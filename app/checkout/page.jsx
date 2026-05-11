@@ -1,9 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
-
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
 export default function DepositCheckout() {
   const [loading, setLoading] = useState(false);
@@ -35,9 +32,9 @@ export default function DepositCheckout() {
         }),
       });
 
-      const { sessionId } = await response.json();
-      const stripe = await stripePromise;
-      await stripe.redirectToCheckout({ sessionId });
+      if (!response.ok) throw new Error('Failed to create checkout session');
+      const { url } = await response.json();
+      window.location.href = url;
     } catch (error) {
       console.error('Checkout error:', error);
       alert('Failed to start checkout. Please try again.');

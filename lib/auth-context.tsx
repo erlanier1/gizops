@@ -118,9 +118,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     canDelete: ['super_admin', 'owner'].includes(role ?? ''),
     canViewPayments: ['super_admin', 'owner', 'manager'].includes(role ?? ''),
     signOut: async () => {
-      await supabase.auth.signOut();
-      localStorage.clear();
-      window.location.href = '/login';
+      try {
+        // Set a timeout to force redirect even if signOut hangs
+        const signOutPromise = supabase.auth.signOut();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Sign out timeout')), 5000)
+        );
+        await Promise.race([signOutPromise, timeoutPromise]);
+      } catch (err) {
+        console.error('Sign out error:', err);
+        // Force redirect anyway
+      } finally {
+        localStorage.clear();
+        window.location.href = '/login';
+      }
     }
   };
 

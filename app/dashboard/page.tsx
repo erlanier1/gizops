@@ -38,6 +38,7 @@ function DashboardContent() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const [data, setData] = useState({
     permitCount: 0,
@@ -48,14 +49,20 @@ function DashboardContent() {
     expiringPermits: [] as any[],
   });
 
+  // Ensure component is mounted before accessing search params
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Access denied banner — auto-dismiss after 5 s
   useEffect(() => {
+    if (!mounted) return;
     if (searchParams.get('error') === 'access_denied') {
       setAccessDenied(true);
       const t = setTimeout(() => setAccessDenied(false), 5000);
       return () => clearTimeout(t);
     }
-  }, [searchParams]);
+  }, [searchParams, mounted]);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -374,7 +381,11 @@ function DashboardContent() {
 
 export default function DashboardPage() {
   return (
-    <Suspense>
+    <Suspense fallback={
+      <div className="flex items-center justify-center py-20">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-ember" />
+      </div>
+    }>
       <DashboardContent />
     </Suspense>
   );

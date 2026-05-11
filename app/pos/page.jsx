@@ -1,9 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
-
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
 export default function POSPage() {
   const [menuItems, setMenuItems] = useState([]);
@@ -79,7 +76,7 @@ export default function POSPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/pos/checkout', {
+      const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -88,9 +85,9 @@ export default function POSPage() {
         }),
       });
 
-      const { sessionId } = await response.json();
-      const stripe = await stripePromise;
-      await stripe.redirectToCheckout({ sessionId });
+      if (!response.ok) throw new Error('Failed to create checkout session');
+      const { url } = await response.json();
+      window.location.href = url;
     } catch (error) {
       console.error('Checkout error:', error);
       alert('Payment failed. Please try again.');
