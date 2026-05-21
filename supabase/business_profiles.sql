@@ -4,14 +4,36 @@ create table if not exists public.accounts (
   slug text not null unique,
   owner_contact_name text,
   owner_contact_email text,
+  billing_provider text not null default 'stripe',
+  billing_status text not null default 'manual',
+  plan_name text,
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  stripe_payment_link text,
+  square_location_id text,
+  paypal_merchant_id text,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint accounts_billing_provider_check check (
+    billing_provider in ('stripe', 'square', 'paypal', 'manual')
+  ),
+  constraint accounts_billing_status_check check (
+    billing_status in ('manual', 'trialing', 'active', 'past_due', 'canceled')
+  )
 );
 
 alter table public.accounts
   add column if not exists owner_contact_name text,
-  add column if not exists owner_contact_email text;
+  add column if not exists owner_contact_email text,
+  add column if not exists billing_provider text not null default 'stripe',
+  add column if not exists billing_status text not null default 'manual',
+  add column if not exists plan_name text,
+  add column if not exists stripe_customer_id text,
+  add column if not exists stripe_subscription_id text,
+  add column if not exists stripe_payment_link text,
+  add column if not exists square_location_id text,
+  add column if not exists paypal_merchant_id text;
 
 alter table public.profiles
   add column if not exists account_id uuid references public.accounts(id) on delete set null;

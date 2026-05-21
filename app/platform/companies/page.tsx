@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Building2, CheckCircle2, Loader2, Mail, Plus, Power, Save } from 'lucide-react';
+import { Building2, CheckCircle2, CreditCard, Loader2, Mail, Plus, Power, Save } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { Toast } from '@/components/ui/toast';
 import { useUser } from '@/lib/auth-context';
@@ -20,6 +20,14 @@ type AccountRow = {
   is_active: boolean;
   owner_contact_name: string | null;
   owner_contact_email: string | null;
+  billing_provider: 'stripe' | 'square' | 'paypal' | 'manual';
+  billing_status: 'manual' | 'trialing' | 'active' | 'past_due' | 'canceled';
+  plan_name: string | null;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  stripe_payment_link: string | null;
+  square_location_id: string | null;
+  paypal_merchant_id: string | null;
   created_at: string;
   business_profiles?: Array<{
     business_name: string | null;
@@ -29,6 +37,17 @@ type AccountRow = {
   }>;
   account_modules?: AccountModuleRow[];
 };
+
+type BillingForm = Pick<AccountRow,
+  | 'billing_provider'
+  | 'billing_status'
+  | 'plan_name'
+  | 'stripe_customer_id'
+  | 'stripe_subscription_id'
+  | 'stripe_payment_link'
+  | 'square_location_id'
+  | 'paypal_merchant_id'
+>;
 
 type CompanyForm = {
   name: string;
@@ -73,7 +92,9 @@ export default function PlatformCompaniesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [invitingOwner, setInvitingOwner] = useState<Record<string, boolean>>({});
+  const [savingBilling, setSavingBilling] = useState<Record<string, boolean>>({});
   const [ownerInviteForms, setOwnerInviteForms] = useState<Record<string, { full_name: string; email: string }>>({});
+  const [billingForms, setBillingForms] = useState<Record<string, BillingForm>>({});
   const [selectedModules, setSelectedModules] = useState<ModuleKey[]>(['meal_prep', 'pos', 'inventory']);
   const [form, setForm] = useState<CompanyForm>(initialForm);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -91,6 +112,14 @@ export default function PlatformCompaniesPage() {
         is_active,
         owner_contact_name,
         owner_contact_email,
+        billing_provider,
+        billing_status,
+        plan_name,
+        stripe_customer_id,
+        stripe_subscription_id,
+        stripe_payment_link,
+        square_location_id,
+        paypal_merchant_id,
         created_at,
         business_profiles ( business_name, contact_email, contact_phone, brand_tagline ),
         account_modules ( module_key, enabled )
@@ -102,6 +131,19 @@ export default function PlatformCompaniesPage() {
       setAccounts([]);
     } else {
       setAccounts((data ?? []) as AccountRow[]);
+      setBillingForms(Object.fromEntries((data ?? []).map(account => [
+        account.id,
+        {
+          billing_provider: account.billing_provider ?? 'stripe',
+          billing_status: account.billing_status ?? 'manual',
+          plan_name: account.plan_name ?? '',
+          stripe_customer_id: account.stripe_customer_id ?? '',
+          stripe_subscription_id: account.stripe_subscription_id ?? '',
+          stripe_payment_link: account.stripe_payment_link ?? '',
+          square_location_id: account.square_location_id ?? '',
+          paypal_merchant_id: account.paypal_merchant_id ?? '',
+        },
+      ])) as Record<string, BillingForm>);
     }
     setLoading(false);
   }, [supabase]);
@@ -234,6 +276,52 @@ export default function PlatformCompaniesPage() {
         [key]: value,
       },
     }));
+  };
+
+  const updateBillingForm = (account: AccountRow, key: keyof BillingForm, value: string) => {
+    setBillingForms(prev => ({
+      ...prev,
+      [account.id]: {
+        billing_provider: prev[account.id]?.billing_provider ?? account.billing_provider ?? 'stripe',
+        billing_status: prev[account.id]?.billing_status ?? account.billing_status ?? 'manual',
+        plan_name: prev[account.id]?.plan_name ?? account.plan_name ?? '',
+        stripe_customer_id: prev[account.id]?.stripe_customer_id ?? account.stripe_customer_id ?? '',
+        stripe_subscription_id: prev[account.id]?.stripe_subscription_id ?? account.stripe_subscription_id ?? '',
+        stripe_payment_link: prev[account.id]?.stripe_payment_link ?? account.stripe_payment_link ?? '',
+        square_location_id: prev[account.id]?.square_location_id ?? account.square_location_id ?? '',
+        paypal_merchant_id: prev[account.id]?.paypal_merchant_id ?? account.paypal_merchant_id ?? '',
+        [key]: value,
+      },
+    }));
+  };
+
+  const saveBilling = async (account: AccountRow) => {
+    const billing = billingForms[account.id];
+    if (!billing) return;
+
+    setSavingBilling(prev => ({ ...prev, [account.id]: true }));
+    const payload = {
+      billing_provider: billing.billing_provider,
+      billing_status: billing.billing_status,
+      plan_name: billing.plan_name?.trim() || null,
+      stripe_customer_id: billing.stripe_customer_id?.trim() || null,
+      stripe_subscription_id: billing.stripe_subscription_id?.trim() || null,
+      stripe_payment_link: billing.stripe_payment_link?.trim() || null,
+      square_location_id: billing.square_location_id?.trim() || null,
+      paypal_merchant_id: billing.paypal_merchant_id?.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from('accounts').update(payload).eq('id', account.id);
+    setSavingBilling(prev => ({ ...prev, [account.id]: false }));
+
+    if (error) {
+      setToast({ message: error.message, type: 'error' });
+      return;
+    }
+
+    setAccounts(prev => prev.map(item => item.id === account.id ? { ...item, ...payload } as AccountRow : item));
+    setToast({ message: 'Billing settings saved.', type: 'success' });
   };
 
   const inviteOwner = async (account: AccountRow) => {
@@ -389,6 +477,16 @@ export default function PlatformCompaniesPage() {
                   full_name: account.owner_contact_name ?? '',
                   email: account.owner_contact_email ?? '',
                 };
+                const billing = billingForms[account.id] ?? {
+                  billing_provider: account.billing_provider ?? 'stripe',
+                  billing_status: account.billing_status ?? 'manual',
+                  plan_name: account.plan_name ?? '',
+                  stripe_customer_id: account.stripe_customer_id ?? '',
+                  stripe_subscription_id: account.stripe_subscription_id ?? '',
+                  stripe_payment_link: account.stripe_payment_link ?? '',
+                  square_location_id: account.square_location_id ?? '',
+                  paypal_merchant_id: account.paypal_merchant_id ?? '',
+                };
                 return (
                   <div key={account.id} className="p-5">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -442,6 +540,118 @@ export default function PlatformCompaniesPage() {
                           </button>
                         );
                       })}
+                    </div>
+
+                    <div className="mt-4 rounded-lg border border-line bg-coal p-4">
+                      <div className="mb-3 flex items-center gap-2">
+                        <CreditCard className="h-4 w-4 text-ember" />
+                        <p className="text-xs font-semibold uppercase tracking-wider text-mist/60">Billing</p>
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                        <div>
+                          <label className={labelClass} htmlFor={`billing-provider-${account.id}`}>Provider</label>
+                          <select
+                            id={`billing-provider-${account.id}`}
+                            className={inputClass}
+                            value={billing.billing_provider}
+                            onChange={event => updateBillingForm(account, 'billing_provider', event.target.value)}
+                          >
+                            <option value="stripe">Stripe</option>
+                            <option value="square">Square</option>
+                            <option value="paypal">PayPal</option>
+                            <option value="manual">Manual</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className={labelClass} htmlFor={`billing-status-${account.id}`}>Billing status</label>
+                          <select
+                            id={`billing-status-${account.id}`}
+                            className={inputClass}
+                            value={billing.billing_status}
+                            onChange={event => updateBillingForm(account, 'billing_status', event.target.value)}
+                          >
+                            <option value="manual">Manual</option>
+                            <option value="trialing">Trialing</option>
+                            <option value="active">Active</option>
+                            <option value="past_due">Past due</option>
+                            <option value="canceled">Canceled</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className={labelClass} htmlFor={`plan-name-${account.id}`}>Plan name</label>
+                          <input
+                            id={`plan-name-${account.id}`}
+                            className={inputClass}
+                            value={billing.plan_name ?? ''}
+                            onChange={event => updateBillingForm(account, 'plan_name', event.target.value)}
+                            placeholder="POS + Inventory"
+                          />
+                        </div>
+                        <div className="lg:col-span-3">
+                          <label className={labelClass} htmlFor={`stripe-payment-link-${account.id}`}>Stripe payment/subscription link</label>
+                          <input
+                            id={`stripe-payment-link-${account.id}`}
+                            className={inputClass}
+                            value={billing.stripe_payment_link ?? ''}
+                            onChange={event => updateBillingForm(account, 'stripe_payment_link', event.target.value)}
+                            placeholder="https://buy.stripe.com/..."
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass} htmlFor={`stripe-customer-${account.id}`}>Stripe customer ID</label>
+                          <input
+                            id={`stripe-customer-${account.id}`}
+                            className={inputClass}
+                            value={billing.stripe_customer_id ?? ''}
+                            onChange={event => updateBillingForm(account, 'stripe_customer_id', event.target.value)}
+                            placeholder="cus_..."
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass} htmlFor={`stripe-subscription-${account.id}`}>Stripe subscription ID</label>
+                          <input
+                            id={`stripe-subscription-${account.id}`}
+                            className={inputClass}
+                            value={billing.stripe_subscription_id ?? ''}
+                            onChange={event => updateBillingForm(account, 'stripe_subscription_id', event.target.value)}
+                            placeholder="sub_..."
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass} htmlFor={`square-location-${account.id}`}>Square location ID</label>
+                          <input
+                            id={`square-location-${account.id}`}
+                            className={inputClass}
+                            value={billing.square_location_id ?? ''}
+                            onChange={event => updateBillingForm(account, 'square_location_id', event.target.value)}
+                            placeholder="Optional"
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClass} htmlFor={`paypal-merchant-${account.id}`}>PayPal merchant ID</label>
+                          <input
+                            id={`paypal-merchant-${account.id}`}
+                            className={inputClass}
+                            value={billing.paypal_merchant_id ?? ''}
+                            onChange={event => updateBillingForm(account, 'paypal_merchant_id', event.target.value)}
+                            placeholder="Optional"
+                          />
+                        </div>
+                        <div className="flex items-end lg:col-span-2">
+                          <button
+                            type="button"
+                            onClick={() => saveBilling(account)}
+                            disabled={savingBilling[account.id]}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-line px-4 py-2.5 text-sm font-semibold text-mist transition-colors hover:bg-hover hover:text-cream disabled:opacity-60 lg:w-auto"
+                          >
+                            {savingBilling[account.id] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            Save Billing
+                          </button>
+                        </div>
+                      </div>
+                      <p className="mt-3 text-xs leading-5 text-mist/60">
+                        Use Stripe for platform subscriptions today. Square and PayPal fields are ready for future optional processor integrations.
+                      </p>
                     </div>
 
                     <div className="mt-4 rounded-lg border border-line bg-coal p-4">
