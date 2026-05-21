@@ -85,6 +85,41 @@ function moduleSummary(rows: AccountModuleRow[] | undefined) {
   return enabled.length ? enabled.join(', ') : 'No paid modules enabled';
 }
 
+function withBillingDefaults(account: Partial<AccountRow>): AccountRow {
+  return {
+    id: account.id ?? '',
+    name: account.name ?? '',
+    slug: account.slug ?? '',
+    is_active: account.is_active ?? true,
+    owner_contact_name: account.owner_contact_name ?? null,
+    owner_contact_email: account.owner_contact_email ?? null,
+    billing_provider: account.billing_provider ?? 'stripe',
+    billing_status: account.billing_status ?? 'manual',
+    plan_name: account.plan_name ?? null,
+    stripe_customer_id: account.stripe_customer_id ?? null,
+    stripe_subscription_id: account.stripe_subscription_id ?? null,
+    stripe_payment_link: account.stripe_payment_link ?? null,
+    square_location_id: account.square_location_id ?? null,
+    paypal_merchant_id: account.paypal_merchant_id ?? null,
+    created_at: account.created_at ?? '',
+    business_profiles: account.business_profiles ?? [],
+    account_modules: account.account_modules ?? [],
+  };
+}
+
+function billingFormFromAccount(account: AccountRow): BillingForm {
+  return {
+    billing_provider: account.billing_provider ?? 'stripe',
+    billing_status: account.billing_status ?? 'manual',
+    plan_name: account.plan_name ?? '',
+    stripe_customer_id: account.stripe_customer_id ?? '',
+    stripe_subscription_id: account.stripe_subscription_id ?? '',
+    stripe_payment_link: account.stripe_payment_link ?? '',
+    square_location_id: account.square_location_id ?? '',
+    paypal_merchant_id: account.paypal_merchant_id ?? '',
+  };
+}
+
 export default function PlatformCompaniesPage() {
   const supabase = createClientComponentClient();
   const { isSuperAdmin, loading: authLoading } = useUser();
@@ -103,46 +138,69 @@ export default function PlatformCompaniesPage() {
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+
+    const accountSelect = `
+      id,
+      name,
+      slug,
+      is_active,
+      owner_contact_name,
+      owner_contact_email,
+      billing_provider,
+      billing_status,
+      plan_name,
+      stripe_customer_id,
+      stripe_subscription_id,
+      stripe_payment_link,
+      square_location_id,
+      paypal_merchant_id,
+      created_at,
+      business_profiles ( business_name, contact_email, contact_phone, brand_tagline ),
+      account_modules ( module_key, enabled )
+    `;
+
+    const fallbackSelect = `
+      id,
+      name,
+      slug,
+      is_active,
+      owner_contact_name,
+      owner_contact_email,
+      created_at,
+      business_profiles ( business_name, contact_email, contact_phone, brand_tagline ),
+      account_modules ( module_key, enabled )
+    `;
+
+    let result = await supabase
       .from('accounts')
-      .select(`
-        id,
-        name,
-        slug,
-        is_active,
-        owner_contact_name,
-        owner_contact_email,
-        billing_provider,
-        billing_status,
-        plan_name,
-        stripe_customer_id,
-        stripe_subscription_id,
-        stripe_payment_link,
-        square_location_id,
-        paypal_merchant_id,
-        created_at,
-        business_profiles ( business_name, contact_email, contact_phone, brand_tagline ),
-        account_modules ( module_key, enabled )
-      `)
+      .select(accountSelect)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      setToast({ message: `Company setup table is not ready yet: ${error.message}`, type: 'error' });
+    if (result.error && result.error.message.toLowerCase().includes('column')) {
+      const fallback = await supabase
+        .from('accounts')
+        .select(fallbackSelect)
+        .order('created_at', { ascending: false });
+
+      result = fallback as typeof result;
+
+      if (!fallback.error) {
+        setToast({
+          message: 'Company table loaded. Run the latest business_profiles.sql to enable billing fields.',
+          type: 'error',
+        });
+      }
+    }
+
+    if (result.error) {
+      setToast({ message: `Company setup table is not ready yet: ${result.error.message}`, type: 'error' });
       setAccounts([]);
     } else {
-      setAccounts((data ?? []) as AccountRow[]);
-      setBillingForms(Object.fromEntries((data ?? []).map(account => [
+      const normalizedAccounts = ((result.data ?? []) as Partial<AccountRow>[]).map(withBillingDefaults);
+      setAccounts(normalizedAccounts);
+      setBillingForms(Object.fromEntries(normalizedAccounts.map(account => [
         account.id,
-        {
-          billing_provider: account.billing_provider ?? 'stripe',
-          billing_status: account.billing_status ?? 'manual',
-          plan_name: account.plan_name ?? '',
-          stripe_customer_id: account.stripe_customer_id ?? '',
-          stripe_subscription_id: account.stripe_subscription_id ?? '',
-          stripe_payment_link: account.stripe_payment_link ?? '',
-          square_location_id: account.square_location_id ?? '',
-          paypal_merchant_id: account.paypal_merchant_id ?? '',
-        },
+        billingFormFromAccount(account),
       ])) as Record<string, BillingForm>);
     }
     setLoading(false);
