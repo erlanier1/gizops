@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/page-header';
 import { Modal } from '@/components/ui/modal';
 import { Toast } from '@/components/ui/toast';
 import { ManagerAndAbove, OwnerOnly } from '@/components/RoleGuard';
+import { ModuleGate } from '@/components/ModuleGate';
 import { useUser } from '@/lib/auth-context';
 import { FolderOpen, Upload, FileText, File, Plus, Search, Download, Loader2, X, Trash2 } from 'lucide-react';
 
@@ -145,6 +146,7 @@ export default function DocumentsPage() {
   const lbl = 'block text-xs font-medium text-mist mb-1.5';
 
   return (
+    <ModuleGate moduleKey="documents">
     <div>
       <PageHeader
         title="Documents"
@@ -336,5 +338,6 @@ export default function DocumentsPage() {
 
       {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
     </div>
+    </ModuleGate>
   );
 }

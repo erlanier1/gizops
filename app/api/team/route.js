@@ -1,9 +1,24 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getCurrentProfile, isSuperAdmin } from '@/lib/api-auth';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    const { profile, error: authError } = await getCurrentProfile();
+    if (authError) return Response.json({ error: authError }, { status: 401 });
+
+    let profilesQuery = supabaseAdmin
+      .from('profiles')
+      .select('id, full_name, role, account_id, is_active');
+
+    if (!isSuperAdmin(profile)) {
+      if (!profile.account_id) return Response.json([]);
+      profilesQuery = profilesQuery.eq('account_id', profile.account_id);
+    }
+
     const [{ data: profiles, error: profilesError }, { data: { users }, error: usersError }] = await Promise.all([
-      supabaseAdmin.from('profiles').select('id, full_name, role, is_active'),
+      profilesQuery,
       supabaseAdmin.auth.admin.listUsers(),
     ]);
 
@@ -19,6 +34,7 @@ export async function GET() {
         full_name: p.full_name,
         email: authUser?.email ?? null,
         role: p.role,
+        account_id: p.account_id,
         is_active: p.is_active,
         last_sign_in_at: authUser?.last_sign_in_at ?? null,
         invited_at: authUser?.invited_at ?? null,

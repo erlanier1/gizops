@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/page-header';
 import { BookingModal, Booking } from '@/components/bookings/booking-modal';
 import { Toast } from '@/components/ui/toast';
 import { ManagerAndAbove, OwnerOnly } from '@/components/RoleGuard';
+import { ModuleGate } from '@/components/ModuleGate';
 import { useUser } from '@/lib/auth-context';
 import { CalendarDays, Users, DollarSign, Plus, Pencil, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 
@@ -112,6 +113,7 @@ export default function BookingsPage() {
   const pending = byStage('inquiry').length + byStage('quoted').length;
 
   return (
+    <ModuleGate moduleKey="bookings">
     <div>
       <PageHeader
         title="Bookings"
@@ -252,5 +254,6 @@ export default function BookingsPage() {
       <BookingModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={handleSaved} booking={editing} />
       {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
     </div>
+    </ModuleGate>
   );
 }

@@ -1,9 +1,10 @@
-const CACHE_NAME = 'gizops-pos-v1';
+const CACHE_NAME = 'gizops-pos-v2';
 const urlsToCache = [
   '/pos',
   '/pos-icon-192.png',
   '/pos-icon-512.png',
 ];
+const cacheablePaths = new Set(urlsToCache);
 
 // Install event
 self.addEventListener('install', (event) => {
@@ -29,10 +30,23 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - cache first, fallback to network
+// Fetch event - network first for app pages, cache only POS offline assets.
 self.addEventListener('fetch', (event) => {
-  // Only cache GET requests
   if (event.request.method !== 'GET') {
+    return;
+  }
+
+  const url = new URL(event.request.url);
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('/pos'))
+    );
+    return;
+  }
+
+  if (!cacheablePaths.has(url.pathname)) {
+    event.respondWith(fetch(event.request));
     return;
   }
 
@@ -44,7 +58,6 @@ self.addEventListener('fetch', (event) => {
 
       return fetch(event.request)
         .then((response) => {
-          // Cache successful responses
           if (
             !response ||
             response.status !== 200 ||
@@ -61,7 +74,6 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          // Fallback for offline
           return caches.match('/pos').then((response) => {
             return response || new Response('Offline - please check your connection');
           });

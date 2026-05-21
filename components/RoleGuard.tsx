@@ -28,6 +28,10 @@ export const ManagerAndAbove = ({ children }: { children: React.ReactNode }) => 
   <RoleGuard roles={['owner', 'manager', 'super_admin']}>{children}</RoleGuard>
 );
 
+export const StaffAndAbove = ({ children }: { children: React.ReactNode }) => (
+  <RoleGuard roles={['staff', 'manager', 'owner', 'super_admin']}>{children}</RoleGuard>
+);
+
 export const SuperAdminOnly = ({ children }: { children: React.ReactNode }) => (
   <RoleGuard roles={['super_admin']}>{children}</RoleGuard>
 );

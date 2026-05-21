@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { ModuleGate } from '@/components/ModuleGate';
 
 export default function POSPage() {
   const [menuItems, setMenuItems] = useState([]);
   const [cart, setCart] = useState([]);
+  const [customerName, setCustomerName] = useState('');
   const [loading, setLoading] = useState(false);
   const [orderTotal, setOrderTotal] = useState(0);
+  const [notice, setNotice] = useState(null);
 
   // Load menu items from database
   useEffect(() => {
@@ -29,6 +32,26 @@ export default function POSPage() {
       }
     };
     loadMenu();
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get('payment');
+    const order = params.get('order');
+
+    if (payment === 'success') {
+      setNotice({
+        type: 'success',
+        message: order
+          ? `Payment complete. POS order ${order.slice(0, 8)} was marked paid and inventory deductions will run from recipe mappings.`
+          : 'Payment complete. If no order was stored, run the POS Supabase setup to enable inventory tracking.',
+      });
+      setCart([]);
+    }
+
+    if (payment === 'cancelled') {
+      setNotice({ type: 'warning', message: 'Payment was cancelled. The cart is still available to retry checkout.' });
+    }
   }, []);
 
   // Update total when cart changes
@@ -81,12 +104,15 @@ export default function POSPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items: cart,
+          customerName,
+          orderSource: 'food_truck',
           total: Math.round(orderTotal * 100), // Convert to cents
         }),
       });
 
       if (!response.ok) throw new Error('Failed to create checkout session');
-      const { url } = await response.json();
+      const { url, warning } = await response.json();
+      if (warning) console.warn(warning);
       window.location.href = url;
     } catch (error) {
       console.error('Checkout error:', error);
@@ -103,13 +129,24 @@ export default function POSPage() {
   };
 
   return (
+    <ModuleGate moduleKey="pos">
     <div className="pos-container">
       <header className="pos-header">
-        <h1>GizOps POS</h1>
+        <div>
+          <h1>Food Truck POS</h1>
+          <p>Stripe Checkout orders tie back to POS history and mapped inventory recipes.</p>
+        </div>
         <div className="total-display">
           Total: <span className="amount">${orderTotal.toFixed(2)}</span>
         </div>
       </header>
+
+      {notice && (
+        <div className={`notice ${notice.type}`}>
+          <span>{notice.message}</span>
+          <button onClick={() => setNotice(null)}>Dismiss</button>
+        </div>
+      )}
 
       <main className="pos-main">
         {/* Menu Grid */}
@@ -132,6 +169,14 @@ export default function POSPage() {
         {/* Cart */}
         <section className="cart-section">
           <h2>Order</h2>
+          <label className="customer-label" htmlFor="customerName">Customer name / ticket</label>
+          <input
+            id="customerName"
+            value={customerName}
+            onChange={(event) => setCustomerName(event.target.value)}
+            className="customer-input"
+            placeholder="Walk-up customer, name, or ticket #"
+          />
           {cart.length === 0 ? (
             <p className="empty-cart">Cart is empty</p>
           ) : (
@@ -187,8 +232,11 @@ export default function POSPage() {
                   disabled={loading}
                   className="pay-button"
                 >
-                  {loading ? 'Processing...' : 'Pay Now'}
+                  {loading ? 'Opening Stripe...' : 'Pay with Stripe'}
                 </button>
+                <p className="payment-note">
+                  Card information is processed by Stripe and is not stored in GizOps. Inventory deducts after successful Stripe payment when menu recipes are mapped.
+                </p>
                 <button onClick={clearCart} className="clear-button">
                   Clear Order
                 </button>
@@ -220,6 +268,44 @@ export default function POSPage() {
         .pos-header h1 {
           margin: 0;
           font-size: 28px;
+          font-weight: 700;
+        }
+
+        .pos-header p {
+          margin: 4px 0 0;
+          font-size: 13px;
+          opacity: 0.85;
+        }
+
+        .notice {
+          margin: 16px 20px 0;
+          border-radius: 8px;
+          padding: 12px 14px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          font-size: 13px;
+          font-weight: 600;
+        }
+
+        .notice.success {
+          background: #ecfdf3;
+          border: 1px solid #86efac;
+          color: #166534;
+        }
+
+        .notice.warning {
+          background: #fffbeb;
+          border: 1px solid #fcd34d;
+          color: #92400e;
+        }
+
+        .notice button {
+          border: none;
+          background: transparent;
+          color: inherit;
+          cursor: pointer;
           font-weight: 700;
         }
 
@@ -257,6 +343,28 @@ export default function POSPage() {
           margin: 0 0 15px 0;
           font-size: 20px;
           color: #333;
+        }
+
+        .customer-label {
+          font-size: 12px;
+          font-weight: 700;
+          color: #555;
+          margin-bottom: 6px;
+          text-transform: uppercase;
+        }
+
+        .customer-input {
+          border: 1px solid #ddd;
+          border-radius: 6px;
+          padding: 11px 12px;
+          font-size: 14px;
+          margin-bottom: 14px;
+        }
+
+        .customer-input:focus {
+          outline: none;
+          border-color: #ff6b35;
+          box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.12);
         }
 
         .menu-grid {
@@ -440,6 +548,17 @@ export default function POSPage() {
           background: #efefef;
         }
 
+        .payment-note {
+          margin: -2px 0 2px;
+          padding: 10px;
+          border-radius: 6px;
+          background: #fff7ed;
+          border: 1px solid #fed7aa;
+          color: #7c2d12;
+          font-size: 12px;
+          line-height: 1.4;
+        }
+
         @media (max-width: 900px) {
           .pos-main {
             grid-template-columns: 1fr;
@@ -451,5 +570,6 @@ export default function POSPage() {
         }
       `}</style>
     </div>
+    </ModuleGate>
   );
 }

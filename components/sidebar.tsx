@@ -6,11 +6,13 @@ import { useState } from 'react';
 import {
   LayoutDashboard, FileText, CalendarDays, FolderOpen, Flame,
   ChevronRight, ChefHat, Users, CreditCard, Package, BarChart3,
-  Settings, LogOut, Loader2, UserCog,
+  Settings, LogOut, Loader2, UserCog, FileSignature, Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/lib/auth-context';
 import { RoleGuard } from '@/components/RoleGuard';
+import { useBusinessProfile } from '@/lib/business-profile';
+import { useEnabledModules } from '@/lib/modules';
 
 const ROLE_COLOR: Record<string, string> = {
   super_admin: '#9E4AE8',
@@ -59,9 +61,9 @@ function NavSection({ label }: { label: string }) {
 
 export function Sidebar() {
   const { profile, role, loading, signOut, isSuperAdmin } = useUser();
+  const { business } = useBusinessProfile();
+  const { hasModule } = useEnabledModules();
   const [signingOut, setSigningOut] = useState(false);
-
-  console.log('[Sidebar] role:', role, '| loading:', loading);
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -93,9 +95,9 @@ export function Sidebar() {
               </span>
             )}
           </div>
-          <p className="text-xs text-mist">Zig's Kitchen</p>
+          <p className="text-xs text-mist">{business.business_name}</p>
           <p className="text-[10px] text-mist/50 leading-tight mt-0.5">
-            Operations built for food truck operators
+            {business.brand_tagline}
           </p>
         </div>
       </div>
@@ -104,24 +106,37 @@ export function Sidebar() {
       <nav className="flex-1 overflow-y-auto px-3 py-2">
         <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" />
 
-        <NavSection label="Meal Prep" />
-        <NavItem href="/meal-prep/schedule" icon={ChefHat} label="Schedule" />
-        <RoleGuard roles={['owner', 'manager', 'super_admin']}>
-          <NavItem href="/meal-prep/clients" icon={Users} label="Clients" />
-          <NavItem href="/meal-prep/payments" icon={CreditCard} label="Payments" />
-        </RoleGuard>
+        {hasModule('meal_prep') && (
+          <>
+            <NavSection label="Meal Prep" />
+            <NavItem href="/meal-prep/schedule" icon={ChefHat} label="Schedule" />
+            <RoleGuard roles={['owner', 'manager', 'super_admin']}>
+              <NavItem href="/meal-prep/clients" icon={Users} label="Clients" />
+              <NavItem href="/meal-prep/payments" icon={CreditCard} label="Payments" />
+            </RoleGuard>
+          </>
+        )}
 
-        <RoleGuard roles={['owner', 'manager', 'super_admin']}>
+        <RoleGuard roles={['staff', 'owner', 'manager', 'super_admin']}>
           <NavSection label="Operations" />
-          <NavItem href="/permits"   icon={FileText}    label="Permits" />
-          <NavItem href="/bookings"  icon={CalendarDays} label="Bookings" />
-          <NavItem href="/inventory" icon={Package}     label="Inventory" />
-          <NavItem href="/documents" icon={FolderOpen}  label="Documents" />
+        </RoleGuard>
+        <RoleGuard roles={['owner', 'manager', 'super_admin']}>
+          {hasModule('permits') && <NavItem href="/permits" icon={FileText} label="Compliance" />}
+          {hasModule('bookings') && <NavItem href="/bookings" icon={CalendarDays} label="Bookings" />}
+          {hasModule('proposals') && <NavItem href="/proposals" icon={FileSignature} label="Proposals" />}
+          {hasModule('inventory') && <NavItem href="/inventory" icon={Package} label="Inventory" />}
+          {hasModule('documents') && <NavItem href="/documents" icon={FolderOpen} label="Documents" />}
+        </RoleGuard>
+        <RoleGuard roles={['staff', 'owner', 'manager', 'super_admin']}>
+          {hasModule('pos') && <NavItem href="/pos" icon={CreditCard} label="POS" />}
         </RoleGuard>
 
         <RoleGuard roles={['owner', 'super_admin']}>
           <NavSection label="Admin" />
-          <NavItem href="/reports"        icon={BarChart3} label="Reports" />
+          {hasModule('reports') && <NavItem href="/reports" icon={BarChart3} label="Reports" />}
+          <RoleGuard roles={['super_admin']}>
+            <NavItem href="/platform/companies" icon={Building2} label="Companies" />
+          </RoleGuard>
           <NavItem href="/settings/users" icon={UserCog}   label="Team" />
           <NavItem href="/settings"       icon={Settings}  label="Settings" />
         </RoleGuard>

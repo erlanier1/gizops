@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/page-header';
 import { PermitModal, type Permit } from '@/components/permits/permit-modal';
 import { Toast } from '@/components/ui/toast';
 import { ManagerAndAbove, OwnerOnly } from '@/components/RoleGuard';
+import { ModuleGate } from '@/components/ModuleGate';
 import { FileText, Plus, Pencil, Trash2, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
 
 interface DBPermit extends Permit {
@@ -76,10 +77,11 @@ export default function PermitsPage() {
   };
 
   return (
+    <ModuleGate moduleKey="permits">
     <div>
       <PageHeader
-        title="Permits & Licenses"
-        description="Track all regulatory permits, licenses, and compliance documents."
+        title="Compliance"
+        description="Track regulatory permits, licenses, inspections, insurance, and compliance documents."
         action={
           <ManagerAndAbove>
             <button onClick={openAdd} className="flex items-center gap-2 rounded-lg bg-ember px-4 py-2 text-sm font-medium text-white hover:bg-ember-dark transition-colors">
@@ -109,7 +111,7 @@ export default function PermitsPage() {
       <div className="rounded-xl bg-smoke border border-line overflow-hidden">
         <div className="px-5 py-4 border-b border-line flex items-center gap-2">
           <FileText className="h-4 w-4 text-ember" />
-          <h2 className="text-sm font-semibold text-cream">All Permits & Licenses</h2>
+          <h2 className="text-sm font-semibold text-cream">All Compliance Items</h2>
           <span className="text-xs text-mist font-normal">({permits.length})</span>
         </div>
 
@@ -173,5 +175,6 @@ export default function PermitsPage() {
       <PermitModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={handleSaved} permit={editing} />
       {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
     </div>
+    </ModuleGate>
   );
 }

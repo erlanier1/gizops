@@ -75,7 +75,7 @@ function LoginContent() {
           <div className="flex items-start gap-3 rounded-xl bg-amber-900/30 border border-amber-700/50 px-4 py-3 mb-5">
             <Clock className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
             <p className="text-sm text-amber-200">
-              You were logged out due to <strong>15 minutes of inactivity</strong>. Please sign in again.
+              You were logged out due to <strong>30 minutes of inactivity</strong>. Please sign in again.
             </p>
           </div>
         )}

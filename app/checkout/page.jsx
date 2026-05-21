@@ -28,7 +28,7 @@ export default function DepositCheckout() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          depositAmount: parseInt(formData.depositAmount) * 100, // Convert to cents
+          depositAmount: Math.round(parseFloat(formData.depositAmount) * 100), // Convert to cents
         }),
       });
 
@@ -51,6 +51,10 @@ export default function DepositCheckout() {
         </div>
 
         <form onSubmit={handleCheckout} className="checkout-form">
+          <div className="security-note">
+            Card information is not stored in GizOps. Payments are processed by Stripe; we only capture contact information needed for your booking.
+          </div>
+
           <div className="form-group">
             <label htmlFor="clientName">Your Name</label>
             <input
@@ -175,6 +179,16 @@ export default function DepositCheckout() {
           display: flex;
           flex-direction: column;
           gap: 20px;
+        }
+
+        .security-note {
+          background: #fff7ed;
+          border: 1px solid #fed7aa;
+          border-radius: 6px;
+          color: #7c2d12;
+          font-size: 13px;
+          line-height: 1.5;
+          padding: 12px;
         }
 
         .form-group {
