@@ -36,7 +36,7 @@ const ROLE_COLOR: Record<Role, string> = {
 };
 
 const ROLE_LABEL: Record<Role, string> = {
-  super_admin: 'Super Admin',
+  super_admin: 'ACIRE Owner',
   owner:       'Owner',
   manager:     'Manager',
   staff:       'Staff',

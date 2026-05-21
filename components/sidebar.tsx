@@ -22,7 +22,7 @@ const ROLE_COLOR: Record<string, string> = {
 };
 
 const ROLE_LABEL: Record<string, string> = {
-  super_admin: 'Super Admin',
+  super_admin: 'ACIRE Owner',
   owner:       'Owner',
   manager:     'Manager',
   staff:       'Staff',
@@ -95,9 +95,9 @@ export function Sidebar() {
               </span>
             )}
           </div>
-          <p className="text-xs text-mist">{business.business_name}</p>
+          <p className="text-xs text-mist">{isSuperAdmin ? 'ACIRE Platform' : business.business_name}</p>
           <p className="text-[10px] text-mist/50 leading-tight mt-0.5">
-            {business.brand_tagline}
+            {isSuperAdmin ? 'Platform owner console' : business.brand_tagline}
           </p>
         </div>
       </div>

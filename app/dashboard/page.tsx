@@ -128,7 +128,7 @@ function DashboardContent() {
         title={pageTitle}
         description={
           isSuperAdmin
-            ? 'ACIRE Platform — Zig\'s Kitchen operations hub.'
+            ? 'ACIRE Platform owner console for managing company accounts and modules.'
             : "Welcome to GizOps — your operations hub for Zig's Kitchen."
         }
         action={
@@ -256,9 +256,9 @@ function DashboardContent() {
                 <Building2 className="h-5 w-5 text-purple-400" />
               </div>
               <div>
-                <p className="text-xs text-mist mb-0.5">Operators on ACIRE Platform</p>
+                <p className="text-xs text-mist mb-0.5">Companies on ACIRE Platform</p>
                 <p className="text-2xl font-bold text-cream">1</p>
-                <p className="text-xs text-mist/50 mt-0.5">Zig's Kitchen</p>
+                <p className="text-xs text-mist/50 mt-0.5">Tenant accounts managed independently</p>
               </div>
             </div>
           )}

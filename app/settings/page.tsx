@@ -172,7 +172,7 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-3 text-xs leading-5 text-mist/70">
               <p>Use roles to separate payment access, inventory changes, proposal authority, and team administration.</p>
-              <p>Super Admin should operate the platform. Owner controls business finances and users. Manager runs daily operations. Staff should only access assigned workflows.</p>
+              <p>ACIRE Owner operates the platform. Company Owner controls business finances and users. Manager runs daily operations. Staff should only access assigned workflows.</p>
             </div>
           </div>
 
@@ -202,7 +202,7 @@ export default function SettingsPage() {
             <thead className="border-b border-line bg-coal text-mist/60">
               <tr>
                 <th className="px-4 py-3 font-semibold">Area</th>
-                <th className="px-4 py-3 font-semibold">Super Admin</th>
+                <th className="px-4 py-3 font-semibold">ACIRE Owner</th>
                 <th className="px-4 py-3 font-semibold">Owner</th>
                 <th className="px-4 py-3 font-semibold">Manager</th>
                 <th className="px-4 py-3 font-semibold">Staff</th>
