@@ -1,8 +1,4 @@
 /** @type {import('next').NextConfig} */
-const isDev = process.env.NODE_ENV !== 'production';
-
-const nextConfig = {
-  distDir: isDev ? '../../../../Downloads/gizops-next' : '.next-local',
-};
+const nextConfig = {};
 
 export default nextConfig;
