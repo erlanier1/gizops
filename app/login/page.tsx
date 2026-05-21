@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Flame, Loader2, Clock, ArrowLeft, Mail } from 'lucide-react';
 
 // Shared input class — text-base (16px) prevents iOS zoom on focus
 const inp = 'w-full rounded-lg bg-coal border border-line px-4 py-3.5 text-base text-cream placeholder-mist/40 focus:border-ember focus:outline-none focus:ring-1 focus:ring-ember transition-colors min-h-[48px]';
+const REMEMBER_EMAIL_KEY = 'gizops.remembered-email';
 
 function LoginContent() {
   const router = useRouter();
@@ -18,6 +19,7 @@ function LoginContent() {
   // Sign-in state
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
+  const [rememberEmail, setRememberEmail] = useState(true);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
 
@@ -27,6 +29,15 @@ function LoginContent() {
   const [resetSending, setResetSending]   = useState(false);
   const [resetSent, setResetSent]         = useState(false);
   const [resetError, setResetError]       = useState<string | null>(null);
+
+  useEffect(() => {
+    const storedEmail = window.localStorage.getItem(REMEMBER_EMAIL_KEY);
+    if (storedEmail) {
+      setEmail(storedEmail);
+      setResetEmail(storedEmail);
+      setRememberEmail(true);
+    }
+  }, []);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +49,13 @@ function LoginContent() {
       setLoading(false);
       return;
     }
+
+    if (rememberEmail) {
+      window.localStorage.setItem(REMEMBER_EMAIL_KEY, email.trim());
+    } else {
+      window.localStorage.removeItem(REMEMBER_EMAIL_KEY);
+    }
+
     router.push('/dashboard');
   };
 
@@ -191,6 +209,16 @@ function LoginContent() {
                     className={inp}
                   />
                 </div>
+
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-mist/70">
+                  <input
+                    type="checkbox"
+                    checked={rememberEmail}
+                    onChange={e => setRememberEmail(e.target.checked)}
+                    className="h-4 w-4 rounded border-line bg-coal accent-ember"
+                  />
+                  Remember my email on this device
+                </label>
 
                 {error && (
                   <div className="rounded-lg bg-red-950/60 border border-red-800/60 px-3.5 py-2.5">
