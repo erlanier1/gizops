@@ -118,6 +118,7 @@ alter table public.accounts enable row level security;
 alter table public.business_profiles enable row level security;
 alter table public.account_modules enable row level security;
 
+drop policy if exists "Super admins can create accounts" on public.accounts;
 create policy "Super admins can create accounts"
 on public.accounts
 for insert
@@ -132,6 +133,7 @@ with check (
   )
 );
 
+drop policy if exists "Users can read their account" on public.accounts;
 create policy "Users can read their account"
 on public.accounts
 for select
@@ -153,6 +155,7 @@ using (
   )
 );
 
+drop policy if exists "Owners can update their account" on public.accounts;
 create policy "Owners can update their account"
 on public.accounts
 for update
@@ -178,6 +181,7 @@ with check (
   )
 );
 
+drop policy if exists "Super admins can manage all accounts" on public.accounts;
 create policy "Super admins can manage all accounts"
 on public.accounts
 for all
@@ -201,6 +205,7 @@ with check (
   )
 );
 
+drop policy if exists "Users can read their business profile" on public.business_profiles;
 create policy "Users can read their business profile"
 on public.business_profiles
 for select
@@ -222,6 +227,7 @@ using (
   )
 );
 
+drop policy if exists "Owners can upsert their business profile" on public.business_profiles;
 create policy "Owners can upsert their business profile"
 on public.business_profiles
 for all
@@ -247,6 +253,7 @@ with check (
   )
 );
 
+drop policy if exists "Users can read their account modules" on public.account_modules;
 create policy "Users can read their account modules"
 on public.account_modules
 for select
@@ -268,6 +275,7 @@ using (
   )
 );
 
+drop policy if exists "Super admins can manage account modules" on public.account_modules;
 create policy "Super admins can manage account modules"
 on public.account_modules
 for all
