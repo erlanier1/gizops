@@ -4,6 +4,7 @@
 insert into public.accounts (
   name,
   slug,
+  industry,
   owner_contact_name,
   owner_contact_email,
   is_active
@@ -11,6 +12,7 @@ insert into public.accounts (
 values (
   'Zig''s Kitchen',
   'zigs-kitchen',
+  'food_service',
   null,
   null,
   true
@@ -18,6 +20,7 @@ values (
 on conflict (slug) do update
 set
   name = excluded.name,
+  industry = excluded.industry,
   is_active = true,
   updated_at = now();
 
@@ -64,6 +67,7 @@ cross join (
     ('proposals'),
     ('pos'),
     ('inventory'),
+    ('contacts'),
     ('documents'),
     ('reports')
 ) as modules(module_key)

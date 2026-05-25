@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Building2, CheckCircle2, CreditCard, Loader2, Mail, Plus, Power, Save } from 'lucide-react';
+import { Building2, CheckCircle2, CreditCard, Loader2, Mail, Plus, Power, Save, SlidersHorizontal } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { Toast } from '@/components/ui/toast';
 import { useUser } from '@/lib/auth-context';
-import { APP_MODULES, ModuleKey } from '@/lib/modules';
+import { APP_MODULES, Industry, ModuleKey, labelsForIndustry } from '@/lib/modules';
 
 type AccountModuleRow = {
   module_key: ModuleKey;
@@ -20,6 +20,8 @@ type AccountRow = {
   is_active: boolean;
   owner_contact_name: string | null;
   owner_contact_email: string | null;
+  industry: Industry;
+  label_overrides: Partial<Record<ModuleKey, string>>;
   billing_provider: 'stripe' | 'square' | 'paypal' | 'manual';
   billing_status: 'manual' | 'trialing' | 'active' | 'past_due' | 'canceled';
   plan_name: string | null;
@@ -52,6 +54,7 @@ type BillingForm = Pick<AccountRow,
 type CompanyForm = {
   name: string;
   slug: string;
+  industry: Industry;
   owner_contact_name: string;
   owner_contact_email: string;
   contact_phone: string;
@@ -61,6 +64,7 @@ type CompanyForm = {
 const initialForm: CompanyForm = {
   name: '',
   slug: '',
+  industry: 'food_service',
   owner_contact_name: '',
   owner_contact_email: '',
   contact_phone: '',
@@ -85,6 +89,11 @@ function moduleSummary(rows: AccountModuleRow[] | undefined) {
   return enabled.length ? enabled.join(', ') : 'No paid modules enabled';
 }
 
+function parseLabelOverrides(value: unknown): Partial<Record<ModuleKey, string>> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return value as Partial<Record<ModuleKey, string>>;
+}
+
 function withBillingDefaults(account: Partial<AccountRow>): AccountRow {
   return {
     id: account.id ?? '',
@@ -93,6 +102,8 @@ function withBillingDefaults(account: Partial<AccountRow>): AccountRow {
     is_active: account.is_active ?? true,
     owner_contact_name: account.owner_contact_name ?? null,
     owner_contact_email: account.owner_contact_email ?? null,
+    industry: account.industry ?? 'food_service',
+    label_overrides: parseLabelOverrides(account.label_overrides),
     billing_provider: account.billing_provider ?? 'stripe',
     billing_status: account.billing_status ?? 'manual',
     plan_name: account.plan_name ?? null,
@@ -128,9 +139,11 @@ export default function PlatformCompaniesPage() {
   const [saving, setSaving] = useState(false);
   const [invitingOwner, setInvitingOwner] = useState<Record<string, boolean>>({});
   const [savingBilling, setSavingBilling] = useState<Record<string, boolean>>({});
+  const [savingCustomization, setSavingCustomization] = useState<Record<string, boolean>>({});
   const [ownerInviteForms, setOwnerInviteForms] = useState<Record<string, { full_name: string; email: string }>>({});
   const [billingForms, setBillingForms] = useState<Record<string, BillingForm>>({});
-  const [selectedModules, setSelectedModules] = useState<ModuleKey[]>(['meal_prep', 'pos', 'inventory']);
+  const [customizationForms, setCustomizationForms] = useState<Record<string, { industry: Industry; label_overrides: Partial<Record<ModuleKey, string>> }>>({});
+  const [selectedModules, setSelectedModules] = useState<ModuleKey[]>(['meal_prep', 'pos', 'inventory', 'contacts']);
   const [form, setForm] = useState<CompanyForm>(initialForm);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -146,6 +159,8 @@ export default function PlatformCompaniesPage() {
       is_active,
       owner_contact_name,
       owner_contact_email,
+      industry,
+      label_overrides,
       billing_provider,
       billing_status,
       plan_name,
@@ -202,6 +217,13 @@ export default function PlatformCompaniesPage() {
         account.id,
         billingFormFromAccount(account),
       ])) as Record<string, BillingForm>);
+      setCustomizationForms(Object.fromEntries(normalizedAccounts.map(account => [
+        account.id,
+        {
+          industry: account.industry,
+          label_overrides: account.label_overrides,
+        },
+      ])) as Record<string, { industry: Industry; label_overrides: Partial<Record<ModuleKey, string>> }>);
     }
     setLoading(false);
   }, [supabase]);
@@ -211,7 +233,7 @@ export default function PlatformCompaniesPage() {
     if (!authLoading && !isSuperAdmin) setLoading(false);
   }, [authLoading, fetchAccounts, isSuperAdmin]);
 
-  const updateForm = (key: keyof CompanyForm, value: string) => {
+  const updateForm = (key: keyof CompanyForm, value: string | Industry) => {
     setForm(prev => ({
       ...prev,
       [key]: value,
@@ -239,6 +261,7 @@ export default function PlatformCompaniesPage() {
       .insert({
         name: form.name.trim(),
         slug: cleanSlug,
+        industry: form.industry,
         owner_contact_name: form.owner_contact_name.trim() || null,
         owner_contact_email: form.owner_contact_email.trim() || null,
       })
@@ -264,7 +287,7 @@ export default function PlatformCompaniesPage() {
         legal_name: form.name.trim(),
         contact_email: form.owner_contact_email.trim() || null,
         contact_phone: form.contact_phone.trim() || null,
-        brand_tagline: form.brand_tagline.trim() || 'Operations built for food service teams',
+        brand_tagline: form.brand_tagline.trim() || (form.industry === 'beauty' ? 'Appointments, clients, and checkout in one workspace' : 'Operations built for service teams'),
         proposal_footer: `Thank you,\n${form.name.trim()}`,
       }),
       supabase.from('account_modules').upsert(moduleRows, { onConflict: 'account_id,module_key' }),
@@ -275,7 +298,7 @@ export default function PlatformCompaniesPage() {
     } else {
       setToast({ message: `${form.name} was created with ${selectedModules.length} enabled modules.`, type: 'success' });
       setForm(initialForm);
-      setSelectedModules(['meal_prep', 'pos', 'inventory']);
+      setSelectedModules(['meal_prep', 'pos', 'inventory', 'contacts']);
       fetchAccounts();
     }
 
@@ -351,6 +374,65 @@ export default function PlatformCompaniesPage() {
         [key]: value,
       },
     }));
+  };
+
+  const updateCustomizationIndustry = (account: AccountRow, industry: Industry) => {
+    setCustomizationForms(prev => ({
+      ...prev,
+      [account.id]: {
+        industry,
+        label_overrides: prev[account.id]?.label_overrides ?? account.label_overrides ?? {},
+      },
+    }));
+  };
+
+  const updateLabelOverride = (account: AccountRow, key: ModuleKey, value: string) => {
+    setCustomizationForms(prev => ({
+      ...prev,
+      [account.id]: {
+        industry: prev[account.id]?.industry ?? account.industry ?? 'food_service',
+        label_overrides: {
+          ...(prev[account.id]?.label_overrides ?? account.label_overrides ?? {}),
+          [key]: value,
+        },
+      },
+    }));
+  };
+
+  const saveCustomization = async (account: AccountRow) => {
+    const customization = customizationForms[account.id] ?? {
+      industry: account.industry,
+      label_overrides: account.label_overrides,
+    };
+    const cleanedOverrides = Object.fromEntries(
+      Object.entries(customization.label_overrides ?? {})
+        .map(([key, value]) => [key, String(value ?? '').trim()])
+        .filter(([, value]) => value.length > 0)
+    ) as Partial<Record<ModuleKey, string>>;
+
+    setSavingCustomization(prev => ({ ...prev, [account.id]: true }));
+    const payload = {
+      industry: customization.industry,
+      label_overrides: cleanedOverrides,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from('accounts').update(payload).eq('id', account.id);
+    setSavingCustomization(prev => ({ ...prev, [account.id]: false }));
+
+    if (error) {
+      setToast({ message: error.message, type: 'error' });
+      return;
+    }
+
+    setAccounts(prev => prev.map(item => item.id === account.id ? { ...item, ...payload } : item));
+    setCustomizationForms(prev => ({
+      ...prev,
+      [account.id]: {
+        industry: payload.industry,
+        label_overrides: cleanedOverrides,
+      },
+    }));
+    setToast({ message: 'Company customization saved.', type: 'success' });
   };
 
   const saveBilling = async (account: AccountRow) => {
@@ -463,6 +545,19 @@ export default function PlatformCompaniesPage() {
               <input id="company_slug" className={inputClass} value={form.slug} onChange={event => updateForm('slug', slugify(event.target.value))} placeholder="acme-catering" />
             </div>
             <div>
+              <label className={labelClass} htmlFor="company_industry">Industry</label>
+              <select
+                id="company_industry"
+                className={inputClass}
+                value={form.industry}
+                onChange={event => updateForm('industry', event.target.value as Industry)}
+              >
+                <option value="food_service">Food service</option>
+                <option value="beauty">Beauty</option>
+                <option value="general_service">General service</option>
+              </select>
+            </div>
+            <div>
               <label className={labelClass} htmlFor="owner_contact_name">Owner contact name</label>
               <input id="owner_contact_name" className={inputClass} value={form.owner_contact_name} onChange={event => updateForm('owner_contact_name', event.target.value)} placeholder="Jordan Smith" />
             </div>
@@ -545,6 +640,11 @@ export default function PlatformCompaniesPage() {
                   square_location_id: account.square_location_id ?? '',
                   paypal_merchant_id: account.paypal_merchant_id ?? '',
                 };
+                const customization = customizationForms[account.id] ?? {
+                  industry: account.industry,
+                  label_overrides: account.label_overrides ?? {},
+                };
+                const previewLabels = labelsForIndustry(customization.industry, customization.label_overrides);
                 return (
                   <div key={account.id} className="p-5">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -565,6 +665,9 @@ export default function PlatformCompaniesPage() {
                         </p>
                         <p className="mt-2 text-xs text-mist/50">
                           Enabled: {moduleSummary(account.account_modules)}
+                        </p>
+                        <p className="mt-2 text-xs text-mist/50">
+                          Industry: {account.industry.replace('_', ' ')}
                         </p>
                         <div className="mt-3 rounded-lg border border-line bg-coal px-3 py-2">
                           <p className="text-[10px] font-semibold uppercase tracking-wider text-mist/50">Website contact intake</p>
@@ -598,6 +701,56 @@ export default function PlatformCompaniesPage() {
                           </button>
                         );
                       })}
+                    </div>
+
+                    <div className="mt-4 rounded-lg border border-line bg-coal p-4">
+                      <div className="mb-3 flex items-center gap-2">
+                        <SlidersHorizontal className="h-4 w-4 text-ember" />
+                        <p className="text-xs font-semibold uppercase tracking-wider text-mist/60">Company Customization</p>
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                        <div>
+                          <label className={labelClass} htmlFor={`industry-${account.id}`}>Industry</label>
+                          <select
+                            id={`industry-${account.id}`}
+                            className={inputClass}
+                            value={customization.industry}
+                            onChange={event => updateCustomizationIndustry(account, event.target.value as Industry)}
+                          >
+                            <option value="food_service">Food service</option>
+                            <option value="beauty">Beauty</option>
+                            <option value="general_service">General service</option>
+                          </select>
+                        </div>
+                        {(['contacts', 'bookings', 'proposals', 'inventory', 'permits', 'pos'] as ModuleKey[]).map(moduleKey => (
+                          <div key={moduleKey}>
+                            <label className={labelClass} htmlFor={`${moduleKey}-${account.id}`}>
+                              {APP_MODULES.find(module => module.key === moduleKey)?.label ?? moduleKey} label
+                            </label>
+                            <input
+                              id={`${moduleKey}-${account.id}`}
+                              className={inputClass}
+                              value={customization.label_overrides?.[moduleKey] ?? ''}
+                              onChange={event => updateLabelOverride(account, moduleKey, event.target.value)}
+                              placeholder={previewLabels[moduleKey]}
+                            />
+                          </div>
+                        ))}
+                        <div className="flex items-end lg:col-span-3">
+                          <button
+                            type="button"
+                            onClick={() => saveCustomization(account)}
+                            disabled={savingCustomization[account.id]}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-line px-4 py-2.5 text-sm font-semibold text-mist transition-colors hover:bg-hover hover:text-cream disabled:opacity-60 lg:w-auto"
+                          >
+                            {savingCustomization[account.id] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            Save Customization
+                          </button>
+                        </div>
+                      </div>
+                      <p className="mt-3 text-xs leading-5 text-mist/60">
+                        Blank labels use the industry default. Custom labels change navigation wording for this company without changing the app code.
+                      </p>
                     </div>
 
                     <div className="mt-4 rounded-lg border border-line bg-coal p-4">

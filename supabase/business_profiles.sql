@@ -4,6 +4,8 @@ create table if not exists public.accounts (
   slug text not null unique,
   owner_contact_name text,
   owner_contact_email text,
+  industry text not null default 'food_service',
+  label_overrides jsonb not null default '{}'::jsonb,
   billing_provider text not null default 'stripe',
   billing_status text not null default 'manual',
   plan_name text,
@@ -15,6 +17,9 @@ create table if not exists public.accounts (
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  constraint accounts_industry_check check (
+    industry in ('food_service', 'beauty', 'general_service')
+  ),
   constraint accounts_billing_provider_check check (
     billing_provider in ('stripe', 'square', 'paypal', 'manual')
   ),
@@ -26,6 +31,8 @@ create table if not exists public.accounts (
 alter table public.accounts
   add column if not exists owner_contact_name text,
   add column if not exists owner_contact_email text,
+  add column if not exists industry text not null default 'food_service',
+  add column if not exists label_overrides jsonb not null default '{}'::jsonb,
   add column if not exists billing_provider text not null default 'stripe',
   add column if not exists billing_status text not null default 'manual',
   add column if not exists plan_name text,
@@ -34,6 +41,21 @@ alter table public.accounts
   add column if not exists stripe_payment_link text,
   add column if not exists square_location_id text,
   add column if not exists paypal_merchant_id text;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'accounts_industry_check'
+      and conrelid = 'public.accounts'::regclass
+  ) then
+    alter table public.accounts
+      add constraint accounts_industry_check check (
+        industry in ('food_service', 'beauty', 'general_service')
+      );
+  end if;
+end $$;
 
 alter table public.profiles
   add column if not exists account_id uuid references public.accounts(id) on delete set null;
@@ -68,12 +90,29 @@ create table if not exists public.account_modules (
   updated_at timestamptz not null default now(),
   unique (account_id, module_key),
   constraint account_modules_module_key_check check (
-    module_key in ('meal_prep', 'bookings', 'permits', 'proposals', 'pos', 'inventory', 'documents', 'reports')
+    module_key in ('meal_prep', 'bookings', 'permits', 'proposals', 'pos', 'inventory', 'contacts', 'documents', 'reports')
   ),
   constraint account_modules_billing_status_check check (
     billing_status in ('manual', 'trialing', 'active', 'past_due', 'canceled')
   )
 );
+
+do $$
+begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conname = 'account_modules_module_key_check'
+      and conrelid = 'public.account_modules'::regclass
+  ) then
+    alter table public.account_modules drop constraint account_modules_module_key_check;
+  end if;
+
+  alter table public.account_modules
+    add constraint account_modules_module_key_check check (
+      module_key in ('meal_prep', 'bookings', 'permits', 'proposals', 'pos', 'inventory', 'contacts', 'documents', 'reports')
+    );
+end $$;
 
 alter table public.accounts enable row level security;
 alter table public.business_profiles enable row level security;

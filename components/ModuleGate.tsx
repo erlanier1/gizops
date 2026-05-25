@@ -10,7 +10,7 @@ export function ModuleGate({
   moduleKey: ModuleKey;
   children: React.ReactNode;
 }) {
-  const { hasModule, loading } = useEnabledModules();
+  const { hasModule, labelFor, loading } = useEnabledModules();
   const module = APP_MODULES.find(item => item.key === moduleKey);
 
   if (loading) {
@@ -29,7 +29,7 @@ export function ModuleGate({
         </div>
         <h1 className="text-lg font-semibold text-cream">Module Not Enabled</h1>
         <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-mist/70">
-          {module?.label ?? 'This app'} is not enabled for this company. A super admin can turn it on from Companies.
+          {module ? labelFor(module.key) : 'This app'} is not enabled for this company. A super admin can turn it on from Companies.
         </p>
       </div>
     );

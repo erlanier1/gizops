@@ -6,7 +6,7 @@ import { useState } from 'react';
 import {
   LayoutDashboard, FileText, CalendarDays, FolderOpen, Flame,
   ChevronRight, ChefHat, Users, CreditCard, Package, BarChart3,
-  Settings, LogOut, Loader2, UserCog, FileSignature, Building2,
+  Settings, LogOut, Loader2, UserCog, FileSignature, Building2, ContactRound,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/lib/auth-context';
@@ -62,7 +62,7 @@ function NavSection({ label }: { label: string }) {
 export function Sidebar() {
   const { profile, role, loading, signOut, isSuperAdmin } = useUser();
   const { business } = useBusinessProfile();
-  const { hasModule } = useEnabledModules();
+  const { hasModule, labelFor } = useEnabledModules();
   const [signingOut, setSigningOut] = useState(false);
 
   const handleSignOut = async () => {
@@ -108,7 +108,7 @@ export function Sidebar() {
 
         {hasModule('meal_prep') && (
           <>
-            <NavSection label="Meal Prep" />
+            <NavSection label={labelFor('meal_prep')} />
             <NavItem href="/meal-prep/schedule" icon={ChefHat} label="Schedule" />
             <RoleGuard roles={['owner', 'manager', 'super_admin']}>
               <NavItem href="/meal-prep/clients" icon={Users} label="Clients" />
@@ -121,19 +121,20 @@ export function Sidebar() {
           <NavSection label="Operations" />
         </RoleGuard>
         <RoleGuard roles={['owner', 'manager', 'super_admin']}>
-          {hasModule('permits') && <NavItem href="/permits" icon={FileText} label="Compliance" />}
-          {hasModule('bookings') && <NavItem href="/bookings" icon={CalendarDays} label="Bookings" />}
-          {hasModule('proposals') && <NavItem href="/proposals" icon={FileSignature} label="Proposals" />}
-          {hasModule('inventory') && <NavItem href="/inventory" icon={Package} label="Inventory" />}
-          {hasModule('documents') && <NavItem href="/documents" icon={FolderOpen} label="Documents" />}
+          {hasModule('contacts') && <NavItem href="/contacts" icon={ContactRound} label={labelFor('contacts')} />}
+          {hasModule('permits') && <NavItem href="/permits" icon={FileText} label={labelFor('permits')} />}
+          {hasModule('bookings') && <NavItem href="/bookings" icon={CalendarDays} label={labelFor('bookings')} />}
+          {hasModule('proposals') && <NavItem href="/proposals" icon={FileSignature} label={labelFor('proposals')} />}
+          {hasModule('inventory') && <NavItem href="/inventory" icon={Package} label={labelFor('inventory')} />}
+          {hasModule('documents') && <NavItem href="/documents" icon={FolderOpen} label={labelFor('documents')} />}
         </RoleGuard>
         <RoleGuard roles={['staff', 'owner', 'manager', 'super_admin']}>
-          {hasModule('pos') && <NavItem href="/pos" icon={CreditCard} label="POS" />}
+          {hasModule('pos') && <NavItem href="/pos" icon={CreditCard} label={labelFor('pos')} />}
         </RoleGuard>
 
         <RoleGuard roles={['owner', 'super_admin']}>
           <NavSection label="Admin" />
-          {hasModule('reports') && <NavItem href="/reports" icon={BarChart3} label="Reports" />}
+          {hasModule('reports') && <NavItem href="/reports" icon={BarChart3} label={labelFor('reports')} />}
           <RoleGuard roles={['super_admin']}>
             <NavItem href="/platform/companies" icon={Building2} label="Companies" />
           </RoleGuard>
