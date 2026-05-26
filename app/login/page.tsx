@@ -42,9 +42,11 @@ function LoginContent() {
   }, []);
 
   useEffect(() => {
-    if (!profileIssue) return;
+    if (!profileIssue && !signedOut) return;
+    window.localStorage.clear();
+    window.sessionStorage.clear();
     supabase.auth.signOut();
-  }, [profileIssue, supabase]);
+  }, [profileIssue, signedOut, supabase]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
