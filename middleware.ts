@@ -17,6 +17,10 @@ export async function middleware(req: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession();
   const path = req.nextUrl.pathname;
 
+  if (path === '/auth/signout') {
+    return res;
+  }
+
   let activeProfile: { role: string; is_active: boolean } | null = null;
   if (session) {
     const { data: profile } = await supabase

@@ -119,7 +119,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     canViewPayments: ['super_admin', 'owner', 'manager'].includes(role ?? ''),
     signOut: async () => {
       try {
-        // Set a timeout to force redirect even if signOut hangs
+        window.localStorage.clear();
+
+        // Set a timeout to avoid getting stuck if the client call hangs.
+        // The server route below clears the auth cookies used by Vercel.
         const signOutPromise = supabase.auth.signOut();
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Sign out timeout')), 5000)
@@ -129,8 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Sign out error:', err);
         // Force redirect anyway
       } finally {
-        localStorage.clear();
-        window.location.href = '/login';
+        window.location.href = '/auth/signout';
       }
     }
   };

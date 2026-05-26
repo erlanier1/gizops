@@ -16,6 +16,7 @@ function LoginContent() {
 
   const timedOut = searchParams.get('reason') === 'timeout';
   const profileIssue = searchParams.get('reason') === 'profile';
+  const signedOut = searchParams.get('reason') === 'signed_out';
 
   // Sign-in state
   const [email, setEmail]       = useState('');
@@ -109,6 +110,15 @@ function LoginContent() {
             <Clock className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
             <p className="text-sm text-amber-200">
               Your saved session did not have an active app profile. Sign in again with the account assigned to your company.
+            </p>
+          </div>
+        )}
+
+        {signedOut && (
+          <div className="flex items-start gap-3 rounded-xl bg-green-900/25 border border-green-800/50 px-4 py-3 mb-5">
+            <Mail className="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
+            <p className="text-sm text-green-200">
+              You are signed out. Use the account assigned to the company workspace you want to access.
             </p>
           </div>
         )}
