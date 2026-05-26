@@ -12,7 +12,7 @@ import { ManagerAndAbove } from '@/components/RoleGuard';
 import { useUser } from '@/lib/auth-context';
 import {
   CalendarDays, FileText, FolderOpen, TrendingUp, AlertCircle,
-  Flame, Plus, Clock, CheckCircle2, X, Package, Building2,
+  Flame, Plus, Clock, CheckCircle2, X, Package, Building2, LogOut,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAccountScope } from '@/lib/account-scope';
@@ -68,39 +68,45 @@ function DashboardContent() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [permitsRes, bookingsRes, docsRes] = await Promise.all([
-      supabase.from('permits').select('id, name, expiration_date'),
-      supabase.from('bookings').select('id, client_name, event_date, event_type, status, quote_amount'),
-      supabase.from('documents').select('id'),
-    ]);
+    try {
+      const [permitsRes, bookingsRes, docsRes] = await Promise.all([
+        supabase.from('permits').select('id, name, expiration_date'),
+        supabase.from('bookings').select('id, client_name, event_date, event_type, status, quote_amount'),
+        supabase.from('documents').select('id'),
+      ]);
 
-    const permits  = permitsRes.data  ?? [];
-    const bookings = bookingsRes.data ?? [];
-    const docs     = docsRes.data     ?? [];
-    const now      = Date.now();
-    const in60Days = now + 60 * 86_400_000;
-    const in30Days = now + 30 * 86_400_000;
+      const permits  = permitsRes.data  ?? [];
+      const bookings = bookingsRes.data ?? [];
+      const docs     = docsRes.data     ?? [];
+      const now      = Date.now();
+      const in60Days = now + 60 * 86_400_000;
+      const in30Days = now + 30 * 86_400_000;
 
-    const expiringPermits = permits
-      .filter(p => p.expiration_date && new Date(p.expiration_date).getTime() <= in60Days)
-      .sort((a, b) => new Date(a.expiration_date).getTime() - new Date(b.expiration_date).getTime())
-      .slice(0, 4);
+      const expiringPermits = permits
+        .filter(p => p.expiration_date && new Date(p.expiration_date).getTime() <= in60Days)
+        .sort((a, b) => new Date(a.expiration_date).getTime() - new Date(b.expiration_date).getTime())
+        .slice(0, 4);
 
-    const upcomingBookings = bookings
-      .filter(b => {
-        if (!b.event_date || b.status !== 'confirmed') return false;
-        const t = new Date(b.event_date + 'T00:00:00').getTime();
-        return t >= now && t <= in30Days;
-      })
-      .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
-      .slice(0, 4);
+      const upcomingBookings = bookings
+        .filter(b => {
+          if (!b.event_date || b.status !== 'confirmed') return false;
+          const t = new Date(b.event_date + 'T00:00:00').getTime();
+          return t >= now && t <= in30Days;
+        })
+        .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
+        .slice(0, 4);
 
-    const confirmedValue = bookings
-      .filter(b => b.status === 'confirmed')
-      .reduce((sum, b) => sum + (b.quote_amount ?? 0), 0);
+      const confirmedValue = bookings
+        .filter(b => b.status === 'confirmed')
+        .reduce((sum, b) => sum + (b.quote_amount ?? 0), 0);
 
-    setData({ permitCount: permits.length, bookingCount: bookings.length, docCount: docs.length, confirmedValue, upcomingBookings, expiringPermits });
-    setLoading(false);
+      setData({ permitCount: permits.length, bookingCount: bookings.length, docCount: docs.length, confirmedValue, upcomingBookings, expiringPermits });
+    } catch (error) {
+      console.error('Dashboard data failed to load:', error);
+      setData({ permitCount: 0, bookingCount: 0, docCount: 0, confirmedValue: 0, upcomingBookings: [], expiringPermits: [] });
+    } finally {
+      setLoading(false);
+    }
   }, [supabase]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -135,6 +141,12 @@ function DashboardContent() {
         }
         action={
           <div className="flex items-center gap-2">
+            <a
+              href="/auth/signout"
+              className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-medium text-mist hover:bg-hover hover:text-cream transition-colors"
+            >
+              <LogOut className="h-3.5 w-3.5" /> Switch Account
+            </a>
             {isSuperAdmin && (
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded bg-purple-900/60 border border-purple-700/60 text-purple-300">
                 ACIRE Platform

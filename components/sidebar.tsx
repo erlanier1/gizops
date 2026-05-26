@@ -101,6 +101,13 @@ export function Sidebar() {
           <p className="text-[10px] text-mist/50 leading-tight mt-0.5">
             {isSuperAdmin ? (selectedAccount ? `Viewing ${selectedAccount.name}` : 'Platform owner console') : business.brand_tagline}
           </p>
+          <a
+            href="/auth/signout"
+            className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-ember hover:text-ember-dark"
+          >
+            <LogOut className="h-3 w-3" />
+            Switch Account
+          </a>
         </div>
       </div>
 
