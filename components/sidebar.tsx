@@ -82,7 +82,7 @@ export function Sidebar() {
   const avatarColor = role ? (ROLE_COLOR[role] ?? '#8A7560') : '#8A7560';
 
   return (
-    <aside className="flex h-full w-64 flex-col bg-sidebar border-r border-line">
+    <aside className="flex h-full w-64 shrink-0 flex-col bg-sidebar border-r border-line">
       {/* Brand */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-line">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-ember shrink-0">

@@ -17,6 +17,7 @@ function LoginContent() {
   const timedOut = searchParams.get('reason') === 'timeout';
   const profileIssue = searchParams.get('reason') === 'profile';
   const signedOut = searchParams.get('reason') === 'signed_out';
+  const forceLogin = searchParams.get('force') === '1';
 
   // Sign-in state
   const [email, setEmail]       = useState('');
@@ -42,11 +43,11 @@ function LoginContent() {
   }, []);
 
   useEffect(() => {
-    if (!profileIssue && !signedOut) return;
+    if (!profileIssue && !signedOut && !forceLogin) return;
     window.localStorage.clear();
     window.sessionStorage.clear();
     supabase.auth.signOut();
-  }, [profileIssue, signedOut, supabase]);
+  }, [forceLogin, profileIssue, signedOut, supabase]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,6 +122,15 @@ function LoginContent() {
             <Mail className="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
             <p className="text-sm text-green-200">
               You are signed out. Use the account assigned to the company workspace you want to access.
+            </p>
+          </div>
+        )}
+
+        {forceLogin && (
+          <div className="flex items-start gap-3 rounded-xl bg-green-900/25 border border-green-800/50 px-4 py-3 mb-5">
+            <Mail className="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
+            <p className="text-sm text-green-200">
+              Saved browser session cleared. Sign in with the account you want to test.
             </p>
           </div>
         )}
