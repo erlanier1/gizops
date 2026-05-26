@@ -73,7 +73,7 @@ async function requireAccess() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, account_id')
     .eq('id', session.user.id)
     .single();
 
@@ -84,11 +84,23 @@ async function requireAccess() {
   return { session, profile };
 }
 
-async function fetchReportData() {
+async function runScopedQuery(table, accountId, orderColumn, orderOptions) {
+  let query = supabaseAdmin.from(table).select('*');
+  if (accountId) query = query.eq('account_id', accountId);
+  const result = await query.order(orderColumn, orderOptions);
+
+  if (result.error && accountId && result.error.message?.toLowerCase().includes('account_id')) {
+    return supabaseAdmin.from(table).select('*').order(orderColumn, orderOptions);
+  }
+
+  return result;
+}
+
+async function fetchReportData(accountId) {
   const [bookingsRes, permitsRes, docsRes] = await Promise.all([
-    supabaseAdmin.from('bookings').select('*').order('event_date', { ascending: true }),
-    supabaseAdmin.from('permits').select('*').order('expiration_date', { ascending: true }),
-    supabaseAdmin.from('documents').select('*').order('created_at', { ascending: false }),
+    runScopedQuery('bookings', accountId, 'event_date', { ascending: true }),
+    runScopedQuery('permits', accountId, 'expiration_date', { ascending: true }),
+    runScopedQuery('documents', accountId, 'created_at', { ascending: false }),
   ]);
 
   return {
@@ -314,7 +326,11 @@ export async function GET(req, { params }) {
 
   const url = new URL(req.url);
   const format = url.searchParams.get('format') || 'word';
-  const data = await fetchReportData();
+  const requestedAccountId = url.searchParams.get('accountId');
+  const accountId = access.profile.role === 'super_admin'
+    ? requestedAccountId
+    : access.profile.account_id;
+  const data = await fetchReportData(accountId);
   const { columns, rows } = getRows(reportId, data);
 
   return responseFor(format, reportId, report, columns, rows);

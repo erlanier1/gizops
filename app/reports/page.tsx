@@ -1,5 +1,7 @@
 'use client';
 
+'use client';
+
 import Link from 'next/link';
 import {
   BarChart3,
@@ -13,6 +15,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { ModuleGate } from '@/components/ModuleGate';
+import { useAccountScope } from '@/lib/account-scope';
 
 const reports = [
   {
@@ -54,12 +57,17 @@ const formats = [
 ];
 
 export default function ReportsPage() {
+  const { selectedAccount, selectedAccountId } = useAccountScope();
+
   return (
     <ModuleGate moduleKey="reports">
     <div>
       <PageHeader
         title="Reports"
-        description="Export standard operations reports in Word, Excel, or PDF formats."
+        description={selectedAccount
+          ? `Export standard operations reports for ${selectedAccount.name} in Word, Excel, or PDF formats.`
+          : 'Export standard operations reports in Word, Excel, or PDF formats.'
+        }
       />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -83,7 +91,7 @@ export default function ReportsPage() {
                       return (
                         <Link
                           key={format.key}
-                          href={`/api/reports/${report.id}?format=${format.key}`}
+                          href={`/api/reports/${report.id}?format=${format.key}${selectedAccountId ? `&accountId=${selectedAccountId}` : ''}`}
                           target="_blank"
                           className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-medium text-mist hover:bg-hover hover:text-cream transition-colors"
                         >

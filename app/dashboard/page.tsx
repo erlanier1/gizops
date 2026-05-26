@@ -15,6 +15,7 @@ import {
   Flame, Plus, Clock, CheckCircle2, X, Package, Building2,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useAccountScope } from '@/lib/account-scope';
 
 function fmtDate(d: string) {
   return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -32,6 +33,7 @@ function DashboardContent() {
   const supabase = createClientComponentClient();
   const searchParams = useSearchParams();
   const { profile, isStaff, isSuperAdmin } = useUser();
+  const { accounts, selectedAccount } = useAccountScope();
 
   const [permitOpen, setPermitOpen] = useState(false);
   const [bookingOpen, setBookingOpen] = useState(false);
@@ -128,7 +130,7 @@ function DashboardContent() {
         title={pageTitle}
         description={
           isSuperAdmin
-            ? 'ACIRE Platform owner console for managing company accounts and modules.'
+            ? `ACIRE Platform owner console${selectedAccount ? ` viewing ${selectedAccount.name}` : ''}.`
             : "Welcome to GizOps — your operations hub for Zig's Kitchen."
         }
         action={
@@ -257,8 +259,10 @@ function DashboardContent() {
               </div>
               <div>
                 <p className="text-xs text-mist mb-0.5">Companies on ACIRE Platform</p>
-                <p className="text-2xl font-bold text-cream">1</p>
-                <p className="text-xs text-mist/50 mt-0.5">Tenant accounts managed independently</p>
+                <p className="text-2xl font-bold text-cream">{accounts.length}</p>
+                <p className="text-xs text-mist/50 mt-0.5">
+                  {selectedAccount ? `Current workspace: ${selectedAccount.name}` : 'Tenant accounts managed independently'}
+                </p>
               </div>
             </div>
           )}

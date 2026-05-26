@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useUser } from '@/lib/auth-context';
+import { useAccountScope } from '@/lib/account-scope';
 
 export type ModuleKey =
   | 'meal_prep'
@@ -86,6 +87,7 @@ export function labelsForIndustry(industry: Industry, overrides?: Partial<Record
 export function useEnabledModules() {
   const supabase = createClientComponentClient();
   const { profile, isSuperAdmin } = useUser();
+  const { selectedAccountId } = useAccountScope();
   const [enabledModules, setEnabledModules] = useState<ModuleKey[]>(ALL_MODULE_KEYS);
   const [industry, setIndustry] = useState<Industry>(DEFAULT_INDUSTRY);
   const [labelOverrides, setLabelOverrides] = useState<Partial<Record<ModuleKey, string>>>({});
@@ -94,7 +96,9 @@ export function useEnabledModules() {
   const fetchModules = useCallback(async () => {
     setLoading(true);
 
-    if (isSuperAdmin || !profile?.account_id) {
+    const accountId = isSuperAdmin ? selectedAccountId : profile?.account_id;
+
+    if (!accountId) {
       setEnabledModules(ALL_MODULE_KEYS);
       setLoading(false);
       return;
@@ -103,7 +107,7 @@ export function useEnabledModules() {
     const accountResult = await supabase
       .from('accounts')
       .select('industry, label_overrides')
-      .eq('id', profile.account_id)
+      .eq('id', accountId)
       .single();
 
     if (!accountResult.error && accountResult.data) {
@@ -121,7 +125,7 @@ export function useEnabledModules() {
     const { data, error } = await supabase
       .from('account_modules')
       .select('module_key, enabled')
-      .eq('account_id', profile.account_id);
+      .eq('account_id', accountId);
 
     if (error || !data || data.length === 0) {
       setEnabledModules(ALL_MODULE_KEYS);
@@ -136,7 +140,7 @@ export function useEnabledModules() {
         .filter((key): key is ModuleKey => ALL_MODULE_KEYS.includes(key))
     );
     setLoading(false);
-  }, [isSuperAdmin, profile?.account_id, supabase]);
+  }, [isSuperAdmin, profile?.account_id, selectedAccountId, supabase]);
 
   useEffect(() => { fetchModules(); }, [fetchModules]);
 

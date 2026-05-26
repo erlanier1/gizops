@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Building2, CheckCircle2, CreditCard, Loader2, Mail, Plus, Power, Save, SlidersHorizontal } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
 import { Toast } from '@/components/ui/toast';
 import { useUser } from '@/lib/auth-context';
 import { APP_MODULES, Industry, ModuleKey, labelsForIndustry } from '@/lib/modules';
+import { useAccountScope } from '@/lib/account-scope';
 
 type AccountModuleRow = {
   module_key: ModuleKey;
@@ -133,7 +135,9 @@ function billingFormFromAccount(account: AccountRow): BillingForm {
 
 export default function PlatformCompaniesPage() {
   const supabase = createClientComponentClient();
+  const router = useRouter();
   const { isSuperAdmin, loading: authLoading } = useUser();
+  const { refreshAccounts, setSelectedAccountId } = useAccountScope();
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -201,7 +205,7 @@ export default function PlatformCompaniesPage() {
 
       if (!fallback.error) {
         setToast({
-          message: 'Company table loaded. Run the latest business_profiles.sql to enable billing fields.',
+          message: 'Company table loaded. Run the latest business_profiles.sql to enable billing, industry, and custom label fields.',
           type: 'error',
         });
       }
@@ -300,6 +304,7 @@ export default function PlatformCompaniesPage() {
       setForm(initialForm);
       setSelectedModules(['meal_prep', 'pos', 'inventory', 'contacts']);
       fetchAccounts();
+      refreshAccounts();
     }
 
     setSaving(false);
@@ -317,6 +322,12 @@ export default function PlatformCompaniesPage() {
     }
 
     setAccounts(prev => prev.map(item => item.id === account.id ? { ...item, is_active: !account.is_active } : item));
+    refreshAccounts();
+  };
+
+  const openWorkspace = (account: AccountRow) => {
+    setSelectedAccountId(account.id);
+    router.push('/dashboard');
   };
 
   const toggleExistingModule = async (account: AccountRow, key: ModuleKey) => {
@@ -680,6 +691,13 @@ export default function PlatformCompaniesPage() {
                       >
                         <Power className="h-3.5 w-3.5" />
                         {account.is_active ? 'Disable' : 'Enable'}
+                      </button>
+                      <button
+                        onClick={() => openWorkspace(account)}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-ember px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-ember-dark"
+                      >
+                        <Building2 className="h-3.5 w-3.5" />
+                        Open Workspace
                       </button>
                     </div>
 

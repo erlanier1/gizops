@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { Sidebar } from '@/components/sidebar';
 import { InactivityGuard } from '@/components/inactivity-guard';
+import { AccountScopeProvider } from '@/lib/account-scope';
 
 const AUTH_ROUTES = ['/login', '/auth'];
 
@@ -17,12 +18,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <InactivityGuard>
-      <div className="flex h-screen overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto bg-coal">
-          <div className="p-6 lg:p-8">{children}</div>
-        </main>
-      </div>
+      <AccountScopeProvider>
+        <div className="flex h-screen overflow-hidden">
+          <Sidebar />
+          <main className="flex-1 overflow-y-auto bg-coal">
+            <div className="p-6 lg:p-8">{children}</div>
+          </main>
+        </div>
+      </AccountScopeProvider>
     </InactivityGuard>
   );
 }

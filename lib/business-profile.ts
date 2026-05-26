@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useUser } from '@/lib/auth-context';
+import { useAccountScope } from '@/lib/account-scope';
 
 export type BusinessProfile = {
   business_name: string;
@@ -46,7 +47,8 @@ export function readStoredBusinessProfile(): BusinessProfile {
 
 export function useBusinessProfile() {
   const supabase = createClientComponentClient();
-  const { profile } = useUser();
+  const { profile, isSuperAdmin } = useUser();
+  const { selectedAccountId } = useAccountScope();
   const [business, setBusiness] = useState<BusinessProfile>(DEFAULT_BUSINESS_PROFILE);
   const [loading, setLoading] = useState(true);
   const [usesLocalStorage, setUsesLocalStorage] = useState(false);
@@ -63,7 +65,9 @@ export function useBusinessProfile() {
     const local = readStoredBusinessProfile();
     setBusiness(local);
 
-    if (!profile?.account_id) {
+    const accountId = isSuperAdmin ? selectedAccountId : profile?.account_id;
+
+    if (!accountId) {
       setUsesLocalStorage(true);
       setLoading(false);
       return;
@@ -72,7 +76,7 @@ export function useBusinessProfile() {
     const { data, error } = await supabase
       .from('business_profiles')
       .select('business_name, legal_name, contact_email, contact_phone, website, address, city, state, postal_code, brand_tagline, proposal_footer')
-      .eq('account_id', profile.account_id)
+      .eq('account_id', accountId)
       .maybeSingle();
 
     if (error || !data) {
@@ -86,7 +90,7 @@ export function useBusinessProfile() {
     setBusiness(next);
     setUsesLocalStorage(false);
     setLoading(false);
-  }, [profile?.account_id, supabase]);
+  }, [isSuperAdmin, profile?.account_id, selectedAccountId, supabase]);
 
   useEffect(() => { fetchBusiness(); }, [fetchBusiness]);
 
@@ -100,7 +104,9 @@ export function useBusinessProfile() {
   }, []);
 
   const saveBusiness = useCallback(async (next: BusinessProfile) => {
-    if (!profile?.account_id) {
+    const accountId = isSuperAdmin ? selectedAccountId : profile?.account_id;
+
+    if (!accountId) {
       persistLocal(next);
       return { ok: true, local: true, error: null };
     }
@@ -108,7 +114,7 @@ export function useBusinessProfile() {
     const { error } = await supabase
       .from('business_profiles')
       .upsert({
-        account_id: profile.account_id,
+        account_id: accountId,
         ...next,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'account_id' });
@@ -123,7 +129,7 @@ export function useBusinessProfile() {
     setUsesLocalStorage(false);
     window.dispatchEvent(new CustomEvent('gizops-business-profile-updated', { detail: next }));
     return { ok: true, local: false, error: null };
-  }, [persistLocal, profile?.account_id, supabase]);
+  }, [isSuperAdmin, persistLocal, profile?.account_id, selectedAccountId, supabase]);
 
   return { business, loading, usesLocalStorage, saveBusiness };
 }

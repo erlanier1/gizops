@@ -7,6 +7,8 @@ import { ModuleGate } from '@/components/ModuleGate';
 import { PageHeader } from '@/components/page-header';
 import { Toast } from '@/components/ui/toast';
 import { useEnabledModules } from '@/lib/modules';
+import { useAccountScope } from '@/lib/account-scope';
+import { useUser } from '@/lib/auth-context';
 
 type LeadStatus = 'new' | 'contacted' | 'quoted' | 'booked' | 'closed' | 'spam';
 
@@ -40,6 +42,8 @@ function formatDate(value: string) {
 export default function ContactsPage() {
   const supabase = createClientComponentClient();
   const { labelFor } = useEnabledModules();
+  const { isSuperAdmin } = useUser();
+  const { selectedAccount, selectedAccountId } = useAccountScope();
   const [leads, setLeads] = useState<ContactLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'all' | LeadStatus>('all');
@@ -48,10 +52,16 @@ export default function ContactsPage() {
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from('contact_leads')
       .select('id, source, status, contact_name, email, phone, company_name, service_interest, message, consent_to_contact, created_at')
       .order('created_at', { ascending: false });
+
+    if (isSuperAdmin && selectedAccountId) {
+      query = query.eq('account_id', selectedAccountId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       setToast({ message: error.message, type: 'error' });
@@ -60,7 +70,7 @@ export default function ContactsPage() {
       setLeads((data ?? []) as ContactLead[]);
     }
     setLoading(false);
-  }, [supabase]);
+  }, [isSuperAdmin, selectedAccountId, supabase]);
 
   useEffect(() => {
     fetchLeads();
@@ -92,7 +102,10 @@ export default function ContactsPage() {
       <div>
         <PageHeader
           title={labelFor('contacts')}
-          description="Review website inquiries, client contacts, and lead follow-up status."
+          description={selectedAccount
+            ? `Review website inquiries, client contacts, and lead follow-up status for ${selectedAccount.name}.`
+            : 'Review website inquiries, client contacts, and lead follow-up status.'
+          }
         />
 
         <section className="rounded-xl border border-line bg-smoke">
