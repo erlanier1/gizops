@@ -149,6 +149,7 @@ export function useEnabledModules() {
     labels,
     loading,
     hasModule: (key: ModuleKey) => enabledSet.has(key),
+    shouldShowModule: (key: ModuleKey) => loading || enabledSet.has(key),
     labelFor: (key: ModuleKey) => labels[key],
     refreshModules: fetchModules,
   };

@@ -17,9 +17,21 @@ export async function middleware(req: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession();
   const path = req.nextUrl.pathname;
 
-  // Public routes: redirect authenticated users away from login
+  let activeProfile: { role: string; is_active: boolean } | null = null;
+  if (session) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, is_active')
+      .eq('id', session.user.id)
+      .single();
+
+    activeProfile = profile?.is_active ? profile : null;
+  }
+
+  // Public routes: redirect authenticated users with an active profile away from login.
+  // If the saved browser session has no active profile, allow login so the app can clear it.
   if (PUBLIC_ROUTES.some((r) => path.startsWith(r))) {
-    if (session) return NextResponse.redirect(new URL('/dashboard', req.url));
+    if (session && activeProfile) return NextResponse.redirect(new URL('/dashboard', req.url));
     return res;
   }
 
@@ -28,16 +40,16 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
+  if (!activeProfile) {
+    const url = new URL('/login', req.url);
+    url.searchParams.set('reason', 'profile');
+    return NextResponse.redirect(url);
+  }
+
   // Role-based route protection
   for (const [route, roles] of Object.entries(ROLE_ROUTES)) {
     if (path.startsWith(route)) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single();
-
-      if (!profile || !roles.includes(profile.role)) {
+      if (!roles.includes(activeProfile.role)) {
         const url = new URL('/dashboard', req.url);
         url.searchParams.set('error', 'access_denied');
         return NextResponse.redirect(url);
