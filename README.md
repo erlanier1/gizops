@@ -85,3 +85,7 @@ The lead is saved to `contact_leads`. If `RESEND_API_KEY`, `CONTACT_FROM_EMAIL`,
 - **Permits** — track permit status and expiry alerts
 - **Bookings** — manage food truck and catering events
 - **Documents** — store and review operational files
+
+## User Manual
+
+See `docs/USER_MANUAL.md` for the operating guide covering login, company onboarding, modules, payments, contacts, reports, production setup, and current limitations.
