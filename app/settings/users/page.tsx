@@ -215,7 +215,8 @@ export default function TeamPage() {
 
   const handlePasswordReset = async () => {
     if (!profile?.email) return;
-    await supabase.auth.resetPasswordForEmail(profile.email);
+    const redirectTo = `${window.location.origin}/auth/reset-password`;
+    await supabase.auth.resetPasswordForEmail(profile.email, { redirectTo });
     setToast({ message: 'Password reset email sent.', type: 'success' });
   };
 

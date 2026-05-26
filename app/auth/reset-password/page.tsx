@@ -17,22 +17,80 @@ export default function ResetPasswordPage() {
   const [loading, setLoading]     = useState(false);
   const [success, setSuccess]     = useState(false);
   const [error, setError]         = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(true);
 
-  // Supabase fires PASSWORD_RECOVERY when the user lands via the reset link.
-  // The session is established automatically from the URL token.
+  // Supabase reset links may arrive as a PKCE `code` query param or as URL
+  // hash tokens. Handle both so the page never hangs waiting for one event.
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    let cancelled = false;
+    let timeout: ReturnType<typeof setTimeout>;
+
+    const markReady = () => {
+      if (cancelled) return;
+      setReady(true);
+      setVerifying(false);
+      setError(null);
+      clearTimeout(timeout);
+    };
+
+    const markFailed = (message: string) => {
+      if (cancelled) return;
+      setReady(false);
+      setVerifying(false);
+      setError(message);
+      clearTimeout(timeout);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
-        setReady(true);
+        markReady();
+      }
+      if (session && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        markReady();
       }
     });
 
-    // Also check if a session already exists (e.g. page refresh)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setReady(true);
-    });
+    const verifyResetLink = async () => {
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get('code');
+      const linkError = url.searchParams.get('error_description') || url.searchParams.get('error');
 
-    return () => subscription.unsubscribe();
+      if (linkError) {
+        markFailed(linkError);
+        return;
+      }
+
+      if (code) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (exchangeError) {
+          markFailed(exchangeError.message);
+          return;
+        }
+        markReady();
+        return;
+      }
+
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        markFailed(sessionError.message);
+        return;
+      }
+      if (session) {
+        markReady();
+      }
+    };
+
+    timeout = setTimeout(() => {
+      markFailed('This reset link could not be verified. Request a new password reset link and open the newest email.');
+    }, 8000);
+
+    verifyResetLink();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, [supabase]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -81,7 +139,7 @@ export default function ResetPasswordPage() {
               <p className="text-xs text-mist/70">Taking you to your dashboard…</p>
             </div>
 
-          ) : !ready ? (
+          ) : verifying ? (
             /* ── Waiting for token exchange ── */
             <div className="flex flex-col items-center text-center py-4">
               <Loader2 className="h-8 w-8 animate-spin text-ember mb-4" />
@@ -96,6 +154,21 @@ export default function ResetPasswordPage() {
                 </button>
                 {' '}and request a new link.
               </p>
+            </div>
+
+          ) : !ready ? (
+            <div className="flex flex-col items-center text-center py-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-950/60 border border-red-800/60 mb-4">
+                <AlertCircle className="h-6 w-6 text-red-400" />
+              </div>
+              <p className="text-sm font-semibold text-cream mb-1">Reset link could not be verified</p>
+              <p className="text-xs text-mist/70 mb-5">{error ?? 'Request a new password reset link and use the newest email.'}</p>
+              <button
+                onClick={() => router.push('/login')}
+                className="rounded-lg bg-ember px-4 py-2.5 text-sm font-semibold text-white hover:bg-ember-dark transition-colors"
+              >
+                Return to Login
+              </button>
             </div>
 
           ) : (
