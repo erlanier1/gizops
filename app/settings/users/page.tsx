@@ -215,9 +215,16 @@ export default function TeamPage() {
 
   const handlePasswordReset = async () => {
     if (!profile?.email) return;
-    const redirectTo = `${window.location.origin}/auth/reset-password`;
-    await supabase.auth.resetPasswordForEmail(profile.email, { redirectTo });
-    setToast({ message: 'Password reset email sent.', type: 'success' });
+    const res = await fetch('/api/auth/password-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: profile.email }),
+    });
+    const body = await res.json();
+    setToast({
+      message: res.ok ? 'Password reset email sent.' : body.error ?? 'Password reset email could not be sent.',
+      type: res.ok ? 'success' : 'error',
+    });
   };
 
   // ── Derived ────────────────────────────────────────────────────────────────

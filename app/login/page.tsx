@@ -73,11 +73,15 @@ function LoginContent() {
     e.preventDefault();
     setResetSending(true);
     setResetError(null);
-    const redirectTo = `${window.location.origin}/auth/reset-password`;
-    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, { redirectTo });
+    const res = await fetch('/api/auth/password-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: resetEmail }),
+    });
+    const body = await res.json();
     setResetSending(false);
-    if (error) {
-      setResetError(error.message);
+    if (!res.ok) {
+      setResetError(body.error ?? 'Password reset email could not be sent.');
       return;
     }
     setResetSent(true);
