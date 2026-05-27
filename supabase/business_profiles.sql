@@ -253,6 +253,30 @@ with check (
   )
 );
 
+drop policy if exists "Super admins can manage all business profiles" on public.business_profiles;
+create policy "Super admins can manage all business profiles"
+on public.business_profiles
+for all
+to authenticated
+using (
+  exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'super_admin'
+      and profiles.is_active = true
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'super_admin'
+      and profiles.is_active = true
+  )
+);
+
 drop policy if exists "Users can read their account modules" on public.account_modules;
 create policy "Users can read their account modules"
 on public.account_modules
