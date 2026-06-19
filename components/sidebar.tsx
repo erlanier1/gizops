@@ -14,6 +14,7 @@ import { RoleGuard } from '@/components/RoleGuard';
 import { useBusinessProfile } from '@/lib/business-profile';
 import { useEnabledModules } from '@/lib/modules';
 import { useAccountScope } from '@/lib/account-scope';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 const ROLE_COLOR: Record<string, string> = {
   super_admin: '#9E4AE8',
@@ -203,6 +204,8 @@ export function Sidebar() {
             )}
           </div>
         </div>
+
+        <ThemeToggle />
 
         <button
           onClick={handleSignOut}

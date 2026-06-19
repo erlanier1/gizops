@@ -6,7 +6,7 @@ export function LoadingScreen() {
       style={{
         position:       'fixed',
         inset:          0,
-        background:     '#0F1117',
+        background:     'rgb(var(--color-coal))',
         display:        'flex',
         flexDirection:  'column',
         alignItems:     'center',
@@ -33,7 +33,7 @@ export function LoadingScreen() {
         🔥
       </div>
 
-      <p style={{ color: '#8B8B9E', fontSize: 14, margin: 0, letterSpacing: '0.02em' }}>
+      <p style={{ color: 'rgb(var(--color-mist))', fontSize: 14, margin: 0, letterSpacing: '0.02em' }}>
         Loading GizOps…
       </p>
 

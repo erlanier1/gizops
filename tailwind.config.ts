@@ -20,19 +20,19 @@ const config: Config = {
     extend: {
       colors: {
         // Base surfaces
-        coal:        "#0F1117",   // main background
-        smoke:       "#23232F",   // card / surface
-        sidebar:     "#1C1C24",   // sidebar background
-        hover:       "#2A2A38",   // hover state
+        coal:        "rgb(var(--color-coal) / <alpha-value>)",
+        smoke:       "rgb(var(--color-smoke) / <alpha-value>)",
+        sidebar:     "rgb(var(--color-sidebar) / <alpha-value>)",
+        hover:       "rgb(var(--color-hover) / <alpha-value>)",
         // Accent
         ember:       "#E8521A",   // fire orange — primary accent only
         "ember-dark": "#C43E10",
         "ember-light": "#F06430",
         // Text
-        cream:       "#F0F0F5",   // primary text
-        mist:        "#8B8B9E",   // secondary text
+        cream:       "rgb(var(--color-cream) / <alpha-value>)",
+        mist:        "rgb(var(--color-mist) / <alpha-value>)",
         // Borders
-        line:        "#2E2E3A",   // default border
+        line:        "rgb(var(--color-line) / <alpha-value>)",
         // shadcn tokens
         border:      "hsl(var(--border))",
         input:       "hsl(var(--input))",
