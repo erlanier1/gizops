@@ -90,7 +90,7 @@ create table if not exists public.account_modules (
   updated_at timestamptz not null default now(),
   unique (account_id, module_key),
   constraint account_modules_module_key_check check (
-    module_key in ('meal_prep', 'bookings', 'permits', 'proposals', 'pos', 'inventory', 'contacts', 'documents', 'reports')
+    module_key in ('meal_prep', 'bookings', 'permits', 'proposals', 'pos', 'inventory', 'receipts', 'contacts', 'documents', 'reports')
   ),
   constraint account_modules_billing_status_check check (
     billing_status in ('manual', 'trialing', 'active', 'past_due', 'canceled')
@@ -110,7 +110,7 @@ begin
 
   alter table public.account_modules
     add constraint account_modules_module_key_check check (
-      module_key in ('meal_prep', 'bookings', 'permits', 'proposals', 'pos', 'inventory', 'contacts', 'documents', 'reports')
+      module_key in ('meal_prep', 'bookings', 'permits', 'proposals', 'pos', 'inventory', 'receipts', 'contacts', 'documents', 'reports')
     );
 end $$;
 

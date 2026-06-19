@@ -67,6 +67,7 @@ cross join (
     ('proposals'),
     ('pos'),
     ('inventory'),
+    ('receipts'),
     ('contacts'),
     ('documents'),
     ('reports')

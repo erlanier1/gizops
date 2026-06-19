@@ -740,7 +740,7 @@ export default function PlatformCompaniesPage() {
                             <option value="general_service">General service</option>
                           </select>
                         </div>
-                        {(['contacts', 'bookings', 'proposals', 'inventory', 'permits', 'pos'] as ModuleKey[]).map(moduleKey => (
+                        {(['contacts', 'bookings', 'proposals', 'inventory', 'receipts', 'permits', 'pos'] as ModuleKey[]).map(moduleKey => (
                           <div key={moduleKey}>
                             <label className={labelClass} htmlFor={`${moduleKey}-${account.id}`}>
                               {APP_MODULES.find(module => module.key === moduleKey)?.label ?? moduleKey} label

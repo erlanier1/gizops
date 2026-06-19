@@ -12,6 +12,7 @@ export type ModuleKey =
   | 'proposals'
   | 'pos'
   | 'inventory'
+  | 'receipts'
   | 'contacts'
   | 'documents'
   | 'reports';
@@ -31,6 +32,7 @@ export const APP_MODULES: AppModule[] = [
   { key: 'proposals', label: 'Proposals', description: 'Catering proposals, contract drafts, and client emails.' },
   { key: 'pos', label: 'POS', description: 'Food truck order taking with Stripe Checkout.' },
   { key: 'inventory', label: 'Inventory', description: 'Supply tracking and POS inventory deduction.' },
+  { key: 'receipts', label: 'Receipts', description: 'Purchase receipt storage, review, and expense tracking.' },
   { key: 'contacts', label: 'Contacts', description: 'Website leads, client contact info, and follow-up status.' },
   { key: 'documents', label: 'Documents', description: 'Document storage and operational files.' },
   { key: 'reports', label: 'Reports', description: 'Standard reports and export tools.' },
@@ -47,6 +49,7 @@ export const INDUSTRY_LABELS: Record<Industry, Partial<Record<ModuleKey, string>
     proposals: 'Proposals',
     pos: 'POS',
     inventory: 'Inventory',
+    receipts: 'Receipts',
     contacts: 'Leads',
   },
   beauty: {
@@ -56,6 +59,7 @@ export const INDUSTRY_LABELS: Record<Industry, Partial<Record<ModuleKey, string>
     proposals: 'Service Quotes',
     pos: 'Checkout',
     inventory: 'Products & Supplies',
+    receipts: 'Purchase Receipts',
     contacts: 'Clients & Leads',
     documents: 'Client Files',
   },
@@ -66,6 +70,7 @@ export const INDUSTRY_LABELS: Record<Industry, Partial<Record<ModuleKey, string>
     proposals: 'Quotes',
     pos: 'Payments',
     inventory: 'Inventory',
+    receipts: 'Receipts',
     contacts: 'Contacts',
   },
 };
