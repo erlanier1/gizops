@@ -1,5 +1,9 @@
 import { getCurrentProfile, isSuperAdmin } from '@/lib/api-auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import {
+  invitationRedirectUrl,
+  sendGizOpsInvitation,
+} from '@/lib/invite-email';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,19 +42,30 @@ export async function POST(req, { params }) {
       return Response.json({ error: 'Company account is inactive.' }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(cleanEmail, {
-      data: {
-        full_name: cleanName,
-        role: 'owner',
-        account_id: accountId,
-        company_name: account.name,
+    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'invite',
+      email: cleanEmail,
+      options: {
+        data: {
+          full_name: cleanName,
+          role: 'owner',
+          account_id: accountId,
+          company_name: account.name,
+        },
+        redirectTo: invitationRedirectUrl(req),
       },
     });
 
     if (error) return Response.json({ error: error.message }, { status: 400 });
 
+    const invitedUser = data?.user;
+    const invitationLink = data?.properties?.action_link;
+    if (!invitedUser?.id || !invitationLink) {
+      return Response.json({ error: 'The secure invitation link could not be generated.' }, { status: 500 });
+    }
+
     const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
-      id: data.user.id,
+      id: invitedUser.id,
       full_name: cleanName,
       role: 'owner',
       account_id: accountId,
@@ -58,7 +73,25 @@ export async function POST(req, { params }) {
     });
 
     if (profileError) {
+      await supabaseAdmin.auth.admin.deleteUser(invitedUser.id);
       return Response.json({ error: profileError.message }, { status: 500 });
+    }
+
+    try {
+      await sendGizOpsInvitation({
+        email: cleanEmail,
+        fullName: cleanName,
+        role: 'owner',
+        companyName: account.name,
+        invitationLink,
+      });
+    } catch (emailError) {
+      await supabaseAdmin.from('profiles').delete().eq('id', invitedUser.id);
+      await supabaseAdmin.auth.admin.deleteUser(invitedUser.id);
+      return Response.json(
+        { error: emailError?.message || 'Invitation email could not be sent.' },
+        { status: 500 }
+      );
     }
 
     await supabaseAdmin
@@ -73,7 +106,7 @@ export async function POST(req, { params }) {
     return Response.json({
       success: true,
       user: {
-        id: data.user.id,
+        id: invitedUser.id,
         email: cleanEmail,
         full_name: cleanName,
         role: 'owner',
@@ -81,6 +114,9 @@ export async function POST(req, { params }) {
       },
     });
   } catch (error) {
-    return Response.json({ error: 'Failed to invite company owner.' }, { status: 500 });
+    return Response.json(
+      { error: error?.message || 'Failed to invite company owner.' },
+      { status: 500 }
+    );
   }
 }

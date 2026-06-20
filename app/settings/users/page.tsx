@@ -196,21 +196,26 @@ export default function TeamPage() {
     e.preventDefault();
     setInviting(true);
     setInviteError(null);
-    const res = await fetch('/api/team/invite', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(inviteForm),
-    });
-    const body = await res.json();
-    setInviting(false);
-    if (!res.ok) {
-      setInviteError(body.error ?? 'Invite failed.');
-      return;
+    try {
+      const res = await fetch('/api/team/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(inviteForm),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setInviteError(body.error ?? 'Invite failed.');
+        return;
+      }
+      setInviteOpen(false);
+      setInviteForm({ email: '', full_name: '', role: 'staff' });
+      setToast({ message: `Invite sent to ${inviteForm.email}.`, type: 'success' });
+      fetchMembers();
+    } catch {
+      setInviteError('GizOps could not reach the invitation service. Please try again.');
+    } finally {
+      setInviting(false);
     }
-    setInviteOpen(false);
-    setInviteForm({ email: '', full_name: '', role: 'staff' });
-    setToast({ message: `Invite sent to ${inviteForm.email}.`, type: 'success' });
-    fetchMembers();
   };
 
   const handlePasswordReset = async () => {
@@ -445,7 +450,7 @@ export default function TeamPage() {
               <option value="manager">Manager</option>
             </select>
             <p className="mt-1.5 text-[11px] text-mist/50">
-              Owner accounts are created directly in Supabase.
+              GizOps will create the account and email a secure password setup link.
             </p>
           </div>
 

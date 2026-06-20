@@ -27,7 +27,8 @@ Copy `.env.local.example` and fill in your Supabase and Resend credentials.
 Website contact intake and email notifications use:
 
 - `RESEND_API_KEY` - Resend API key for outbound email notifications.
-- `CONTACT_FROM_EMAIL` - verified sender address for contact lead notifications.
+- `CONTACT_FROM_EMAIL` - verified sender address for contact lead notifications and fallback app emails.
+- `INVITE_FROM_EMAIL` - optional verified sender address for GizOps user invitations.
 
 Stripe payments also require:
 
