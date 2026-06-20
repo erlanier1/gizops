@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/page-header';
 import { Modal } from '@/components/ui/modal';
 import { Toast } from '@/components/ui/toast';
 import { useUser } from '@/lib/auth-context';
+import { useAccountScope } from '@/lib/account-scope';
 import {
   Plus, Loader2, UserCheck, UserX, Trash2, Mail, KeyRound,
   ShieldAlert, Clock, CheckCircle2, AlertCircle,
@@ -118,6 +119,7 @@ function StatusBadge({ status }: { status: 'active' | 'inactive' | 'invited' }) 
 export default function TeamPage() {
   const supabase = createClientComponentClient();
   const { user, profile, role: callerRole, isSuperAdmin } = useUser();
+  const { selectedAccount, selectedAccountId, loading: accountLoading } = useAccountScope();
 
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,11 +135,19 @@ export default function TeamPage() {
   const [busy, setBusy] = useState<Record<string, boolean>>({});
 
   const fetchMembers = useCallback(async () => {
+    if (isSuperAdmin && !selectedAccountId) {
+      setMembers([]);
+      setLoading(accountLoading);
+      return;
+    }
     setLoading(true);
-    const res = await fetch('/api/team');
+    const query = isSuperAdmin && selectedAccountId
+      ? `?account_id=${encodeURIComponent(selectedAccountId)}`
+      : '';
+    const res = await fetch(`/api/team${query}`);
     if (res.ok) setMembers(await res.json());
     setLoading(false);
-  }, []);
+  }, [accountLoading, isSuperAdmin, selectedAccountId]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
@@ -200,7 +210,10 @@ export default function TeamPage() {
       const res = await fetch('/api/team/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inviteForm),
+        body: JSON.stringify({
+          ...inviteForm,
+          account_id: isSuperAdmin ? selectedAccountId : undefined,
+        }),
       });
       const body = await res.json();
       if (!res.ok) {
@@ -415,7 +428,9 @@ export default function TeamPage() {
         open={inviteOpen}
         onClose={() => { setInviteOpen(false); setInviteError(null); }}
         title="Invite Team Member"
-        description="They'll receive an email with a link to set their password and log in."
+        description={isSuperAdmin && selectedAccount
+          ? `They’ll join ${selectedAccount.name} and receive an email to set their password.`
+          : "They'll receive an email with a link to set their password and log in."}
       >
         <form onSubmit={handleInvite} className="space-y-4">
           <div>
@@ -470,7 +485,7 @@ export default function TeamPage() {
             </button>
             <button
               type="submit"
-              disabled={inviting}
+              disabled={inviting || (isSuperAdmin && !selectedAccountId)}
               className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-ember px-4 py-2.5 text-sm font-semibold text-white hover:bg-ember-dark disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
             >
               {inviting ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</> : <><Mail className="h-4 w-4" /> Send Invite</>}

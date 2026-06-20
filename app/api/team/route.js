@@ -3,7 +3,7 @@ import { getCurrentProfile, isSuperAdmin } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req) {
   try {
     const { profile, error: authError } = await getCurrentProfile();
     if (authError) return Response.json({ error: authError }, { status: 401 });
@@ -12,7 +12,24 @@ export async function GET() {
       .from('profiles')
       .select('id, full_name, role, account_id, is_active');
 
-    if (!isSuperAdmin(profile)) {
+    if (isSuperAdmin(profile)) {
+      const selectedAccountId = new URL(req.url).searchParams.get('account_id');
+      if (!selectedAccountId) {
+        return Response.json({ error: 'Select a company workspace to view its team.' }, { status: 400 });
+      }
+
+      const { data: account, error: accountError } = await supabaseAdmin
+        .from('accounts')
+        .select('id')
+        .eq('id', selectedAccountId)
+        .single();
+
+      if (accountError || !account) {
+        return Response.json({ error: 'Company account was not found.' }, { status: 404 });
+      }
+
+      profilesQuery = profilesQuery.eq('account_id', selectedAccountId);
+    } else {
       if (!profile.account_id) return Response.json([]);
       profilesQuery = profilesQuery.eq('account_id', profile.account_id);
     }
