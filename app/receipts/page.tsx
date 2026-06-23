@@ -109,7 +109,7 @@ function StatusIcon({ status }: { status: ReceiptStatus }) {
 }
 
 export default function ReceiptsPage() {
-  const supabase = createClientComponentClient();
+  const supabase = useMemo(() => createClientComponentClient(), []);
   const { user, profile, isSuperAdmin } = useUser();
   const { selectedAccountId } = useAccountScope();
   const accountId = isSuperAdmin ? selectedAccountId : profile?.account_id;

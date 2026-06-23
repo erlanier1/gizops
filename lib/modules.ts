@@ -90,7 +90,7 @@ export function labelsForIndustry(industry: Industry, overrides?: Partial<Record
 }
 
 export function useEnabledModules() {
-  const supabase = createClientComponentClient();
+  const supabase = useMemo(() => createClientComponentClient(), []);
   const { profile, isSuperAdmin } = useUser();
   const { selectedAccountId } = useAccountScope();
   const [enabledModules, setEnabledModules] = useState<ModuleKey[]>(ALL_MODULE_KEYS);
