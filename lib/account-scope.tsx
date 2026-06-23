@@ -16,11 +16,12 @@ type AccountScopeContextType = {
   selectedAccount: ScopedAccount | null;
   selectedAccountId: string | null;
   loading: boolean;
-  setSelectedAccountId: (accountId: string) => void;
+  setSelectedAccountId: (accountId: string | null) => void;
   refreshAccounts: () => Promise<void>;
 };
 
 const STORAGE_KEY = 'gizops.selected-account-id';
+const ADMIN_PORTAL_SCOPE = '__admin_portal__';
 
 const AccountScopeContext = createContext<AccountScopeContextType>({
   accounts: [],
@@ -38,9 +39,13 @@ export function AccountScopeProvider({ children }: { children: React.ReactNode }
   const [selectedAccountId, setSelectedAccountIdState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const setSelectedAccountId = useCallback((accountId: string) => {
+  const setSelectedAccountId = useCallback((accountId: string | null) => {
     setSelectedAccountIdState(accountId);
-    window.localStorage.setItem(STORAGE_KEY, accountId);
+    if (accountId) {
+      window.localStorage.setItem(STORAGE_KEY, accountId);
+    } else {
+      window.localStorage.setItem(STORAGE_KEY, ADMIN_PORTAL_SCOPE);
+    }
   }, []);
 
   const refreshAccounts = useCallback(async () => {
@@ -68,16 +73,25 @@ export function AccountScopeProvider({ children }: { children: React.ReactNode }
 
     const nextAccounts = (data ?? []) as ScopedAccount[];
     const storedAccountId = window.localStorage.getItem(STORAGE_KEY);
-    const preferredAccountId = storedAccountId || profile?.account_id;
+    const prefersAdminPortal = storedAccountId === ADMIN_PORTAL_SCOPE || !storedAccountId;
+    const preferredAccountId = prefersAdminPortal ? null : storedAccountId || profile?.account_id;
     const selectedExists = preferredAccountId
       ? nextAccounts.some(account => account.id === preferredAccountId)
       : false;
     const fallbackAccount = nextAccounts.find(account => account.is_active) ?? nextAccounts[0] ?? null;
-    const nextSelectedId = selectedExists ? preferredAccountId ?? null : fallbackAccount?.id ?? null;
+    const nextSelectedId = prefersAdminPortal
+      ? null
+      : selectedExists
+        ? preferredAccountId ?? null
+        : fallbackAccount?.id ?? null;
 
     setAccounts(nextAccounts);
     setSelectedAccountIdState(nextSelectedId);
-    if (nextSelectedId) window.localStorage.setItem(STORAGE_KEY, nextSelectedId);
+    if (nextSelectedId) {
+      window.localStorage.setItem(STORAGE_KEY, nextSelectedId);
+    } else {
+      window.localStorage.setItem(STORAGE_KEY, ADMIN_PORTAL_SCOPE);
+    }
     setLoading(false);
   }, [authLoading, isSuperAdmin, profile?.account_id, supabase]);
 

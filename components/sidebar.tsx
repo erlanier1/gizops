@@ -120,9 +120,10 @@ export function Sidebar() {
           <select
             id="admin-company-scope"
             value={selectedAccountId ?? ''}
-            onChange={event => setSelectedAccountId(event.target.value)}
+            onChange={event => setSelectedAccountId(event.target.value || null)}
             className="w-full rounded-lg border border-line bg-coal px-3 py-2 text-xs text-cream focus:border-ember focus:outline-none focus:ring-1 focus:ring-ember"
           >
+            <option value="">Admin Portal — default view</option>
             {accounts.map(account => (
               <option key={account.id} value={account.id}>
                 {account.name}{account.is_active ? '' : ' (inactive)'}
