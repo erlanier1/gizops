@@ -1,6 +1,6 @@
 # GizOps User Manual
 
-Last updated: May 25, 2026
+Last updated: June 23, 2026
 
 ## Purpose
 
@@ -19,6 +19,7 @@ The ACIRE owner can:
 - Set industry type and custom wording.
 - Add billing and payment processor links.
 - Open a company workspace from the Companies page.
+- Return to the platform admin view from the Company Workspace dropdown.
 - View company-aware areas such as contacts and reports.
 - Invite company owners.
 
@@ -131,6 +132,7 @@ Current modules:
 - Proposals
 - POS
 - Inventory
+- Receipts
 - Contacts
 - Documents
 - Reports
@@ -149,12 +151,21 @@ As the ACIRE owner:
 
 This sets the selected company workspace for the admin session. The sidebar will also show a **Company Workspace** dropdown so you can switch between companies.
 
+To return to the platform-level admin view, open the **Company Workspace** dropdown and choose:
+
+```text
+Admin Portal — default view
+```
+
+This clears the selected company for the admin session and returns the sidebar and dashboard to the platform owner view. GizOps remembers this choice, so the ACIRE owner can keep the Admin Portal as the default view until a company workspace is selected again.
+
 The selected company controls:
 
 - Sidebar module labels.
 - Enabled module visibility.
 - Business profile branding.
 - Contacts/leads view.
+- Team invite target company.
 - Report export filtering.
 
 ## Billing And Payment Links
@@ -351,6 +362,37 @@ Beauty examples:
 - Treatment supplies
 - Tools and consumables
 
+## Receipts
+
+The Receipts module stores purchase receipts and tracks expense review status.
+
+Use it for:
+
+- Food, ingredient, or inventory purchases.
+- Packaging and supply receipts.
+- Equipment, fuel, repair, marketing, office, or permit expenses.
+- Receipts that should be easy to find later for review, bookkeeping, reimbursement, or reporting.
+
+To add a receipt:
+
+1. Open **Receipts** from the sidebar.
+2. Click **Add Receipt** or **Upload First Receipt**.
+3. Choose a JPG, PNG, WEBP, or PDF file.
+4. Enter the vendor, purchase date, total, category, payment method, tax, and notes.
+5. Click **Save Receipt**.
+
+Receipts are stored by company workspace. For ACIRE admins, make sure the correct company is selected in the **Company Workspace** dropdown before uploading a receipt.
+
+Receipt review statuses:
+
+- **Needs review** means the receipt was uploaded and has not been reviewed yet.
+- **Reviewed** means a manager or owner has checked it.
+- **Flagged** means the receipt needs follow-up.
+
+Managers and owners can upload receipts and update review status. Owners can delete receipt records and stored files.
+
+The receipt file can be opened from the receipt detail window. PDFs open in a preview frame, and image files show directly in the app.
+
 ## Compliance
 
 The Compliance module was previously called Permits.
@@ -414,6 +456,35 @@ Recommended access model:
 
 When onboarding a new company, invite the owner from the company card.
 
+To invite a team member from inside GizOps:
+
+1. Select the correct company in the **Company Workspace** dropdown.
+2. Go to **Team**.
+3. Click **Invite Team Member**.
+4. Enter the person's full name and email address.
+5. Choose their role.
+6. Click **Send Invite**.
+
+GizOps creates the user account and sends a secure password setup email. The new user follows the email link to set their password and log in.
+
+For ACIRE super admins, a company workspace must be selected before inviting a company user. If **Admin Portal — default view** is selected, switch to the company first.
+
+Invitation email setup requires Resend to be configured in production. At minimum, Vercel must include:
+
+```text
+RESEND_API_KEY
+INVITE_FROM_EMAIL
+NEXT_PUBLIC_APP_URL
+```
+
+The sender email must use a verified Resend domain. Current recommended sender:
+
+```text
+GizOps <invite@updates.gizops.com>
+```
+
+`CONTACT_FROM_EMAIL` can be used for contact alerts and as a fallback sender, but `INVITE_FROM_EMAIL` is preferred for user invitations.
+
 ## Production Readiness Checklist
 
 Before moving a company to production:
@@ -424,9 +495,12 @@ Before moving a company to production:
 - Custom labels are reviewed.
 - Owner contact is saved.
 - Owner invite is sent.
+- Team invite email has been tested from inside GizOps.
 - Billing provider and payment links are saved.
 - Stripe environment variables are configured in Vercel.
+- Resend domain and invite sender are verified.
 - Supabase SQL files have been run.
+- Receipts upload and preview have been tested if the Receipts module is enabled.
 - Contact form integration has been tested.
 - Reports export successfully.
 - Sign out works from Vercel.
@@ -439,10 +513,13 @@ Run these files in Supabase when preparing the database:
 supabase/business_profiles.sql
 supabase/contact_leads.sql
 supabase/tenant_data_scope.sql
+supabase/purchase_receipts.sql
 supabase/seed_zigs_kitchen.sql
 ```
 
 Use `seed_zigs_kitchen.sql` only when creating or refreshing the Zig's Kitchen starter company.
+
+`purchase_receipts.sql` creates the receipts table, private receipt storage bucket, review statuses, indexes, and receipt access policies.
 
 ## Vercel Environment Variables
 
@@ -459,9 +536,20 @@ STRIPE_SECRET_KEY
 STRIPE_WEBHOOK_SECRET
 RESEND_API_KEY
 CONTACT_FROM_EMAIL
+INVITE_FROM_EMAIL
 ```
 
 Restart or redeploy after changing environment variables.
+
+Recommended production email values:
+
+```text
+CONTACT_FROM_EMAIL=GizOps <invite@updates.gizops.com>
+INVITE_FROM_EMAIL=GizOps <invite@updates.gizops.com>
+NEXT_PUBLIC_APP_URL=https://www.gizops.com
+```
+
+Use only sender addresses from a verified Resend domain. If Resend DNS verification is still pending, invitations may fail even when the API key exists.
 
 ## Known Current Limitations
 
