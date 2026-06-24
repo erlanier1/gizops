@@ -44,11 +44,13 @@ function resetEmailHtml({ resetLink }) {
 export async function POST(req) {
   try {
     const apiKey = process.env.RESEND_API_KEY;
-    const from = process.env.CONTACT_FROM_EMAIL;
+    const from = process.env.PASSWORD_RESET_FROM_EMAIL
+      || process.env.INVITE_FROM_EMAIL
+      || process.env.CONTACT_FROM_EMAIL;
 
     if (!apiKey || !from) {
       return Response.json(
-        { error: 'Password reset email is not configured. Set RESEND_API_KEY and CONTACT_FROM_EMAIL.' },
+        { error: 'Password reset email is not configured. Set RESEND_API_KEY and INVITE_FROM_EMAIL.' },
         { status: 500 }
       );
     }

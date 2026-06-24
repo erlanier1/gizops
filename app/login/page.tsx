@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Flame, Loader2, Clock, ArrowLeft, Mail } from 'lucide-react';
@@ -12,7 +12,7 @@ const REMEMBER_EMAIL_KEY = 'gizops.remembered-email';
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = createClientComponentClient();
+  const supabase = useMemo(() => createClientComponentClient(), []);
 
   const timedOut = searchParams.get('reason') === 'timeout';
   const profileIssue = searchParams.get('reason') === 'profile';

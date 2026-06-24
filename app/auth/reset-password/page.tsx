@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Flame, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
@@ -9,7 +9,7 @@ const inp = 'w-full rounded-lg bg-coal border border-line px-4 py-3.5 text-base 
 
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  const supabase = useMemo(() => createClientComponentClient(), []);
 
   const [ready, setReady]         = useState(false);
   const [password, setPassword]   = useState('');
