@@ -231,6 +231,56 @@ Example payload:
 
 The Contacts page lets users review leads and update follow-up status.
 
+### Form.io Lead Import
+
+Form.io forms can post submissions directly to the same endpoint:
+
+```text
+/api/contact-leads?accountSlug=zigs-kitchen
+```
+
+Use a Form.io webhook or action that sends JSON. GizOps accepts standard Form.io submission payloads with fields inside `data`, including common keys such as:
+
+- `contactName`, `name`, `fullName`, `firstName` and `lastName`
+- `email`, `emailAddress`, or `contactEmail`
+- `phone` or `phoneNumber`
+- `companyName`, `company`, or `businessName`
+- `serviceInterest`, `service`, `interest`, or `projectType`
+- `message`, `comments`, `notes`, `details`, or `description`
+
+Example Form.io-style payload:
+
+```json
+{
+  "_id": "formio-submission-id",
+  "data": {
+    "contactName": "Jane Customer",
+    "email": "jane@example.com",
+    "phone": "555-555-0199",
+    "serviceInterest": "Catering",
+    "message": "I need catering for 75 people next month."
+  }
+}
+```
+
+Imported Form.io leads appear in the Contacts inbox with source `form_io`. Repeated submissions with the same Form.io submission ID are treated as duplicates.
+
+### Formspree Lead Import
+
+The current Zigs Kitchen Formspree endpoint is:
+
+```text
+https://formspree.io/f/mqedjyzr
+```
+
+That URL receives form submissions for Formspree. To send new leads into GizOps, either point the website form directly to GizOps or configure Formspree to forward submissions to:
+
+```text
+/api/contact-leads?accountSlug=zigs-kitchen
+```
+
+GizOps accepts Formspree-style URL-encoded form fields or JSON with common field names such as `name`, `email`, `phone`, `company`, `service`, and `message`. These leads appear in the Contacts inbox with source `formspree`.
+
 ## Dashboard
 
 The Dashboard gives a high-level operations view.

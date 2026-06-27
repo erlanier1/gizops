@@ -13,9 +13,31 @@ create table if not exists public.contact_leads (
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint contact_leads_status_check check (status in ('new', 'contacted', 'qualified', 'converted', 'closed')),
-  constraint contact_leads_source_check check (source in ('website', 'manual', 'import', 'event', 'referral'))
+  constraint contact_leads_status_check check (status in ('new', 'contacted', 'quoted', 'booked', 'closed', 'spam')),
+  constraint contact_leads_source_check check (source in ('website', 'manual', 'import', 'event', 'referral', 'form_io', 'formspree'))
 );
+
+alter table public.contact_leads
+  drop constraint if exists contact_leads_status_check;
+
+update public.contact_leads
+set status = case
+  when status = 'qualified' then 'quoted'
+  when status = 'converted' then 'booked'
+  else status
+end
+where status in ('qualified', 'converted');
+
+alter table public.contact_leads
+  add constraint contact_leads_status_check
+    check (status in ('new', 'contacted', 'quoted', 'booked', 'closed', 'spam'));
+
+alter table public.contact_leads
+  drop constraint if exists contact_leads_source_check;
+
+alter table public.contact_leads
+  add constraint contact_leads_source_check
+    check (source in ('website', 'manual', 'import', 'event', 'referral', 'form_io', 'formspree'));
 
 create index if not exists contact_leads_account_idx on public.contact_leads (account_id);
 create index if not exists contact_leads_created_at_idx on public.contact_leads (created_at desc);
@@ -23,6 +45,10 @@ create index if not exists contact_leads_status_idx on public.contact_leads (sta
 create index if not exists contact_leads_email_idx on public.contact_leads (email);
 
 alter table public.contact_leads enable row level security;
+
+drop policy if exists "Users can read contact leads for their account" on public.contact_leads;
+drop policy if exists "Managers can update contact leads for their account" on public.contact_leads;
+drop policy if exists "Owners can delete contact leads for their account" on public.contact_leads;
 
 create policy "Users can read contact leads for their account"
 on public.contact_leads
