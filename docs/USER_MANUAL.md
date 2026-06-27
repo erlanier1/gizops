@@ -515,7 +515,9 @@ To invite a team member from inside GizOps:
 5. Choose their role.
 6. Click **Send Invite**.
 
-GizOps creates the user account and sends a secure password setup email. The new user follows the email link to set their password and log in.
+GizOps creates the user account and sends a secure registration email. The new user follows the email link to the registration page, creates their password, and logs in.
+
+If an account is created with a temporary password instead of an emailed registration link, set `profiles.password_change_required` to `true` for that user. On their next login, GizOps will require them to change the temporary password before opening the dashboard.
 
 For ACIRE super admins, a company workspace must be selected before inviting a company user. If **Admin Portal — default view** is selected, switch to the company first.
 

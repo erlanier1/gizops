@@ -58,7 +58,8 @@ begin
 end $$;
 
 alter table public.profiles
-  add column if not exists account_id uuid references public.accounts(id) on delete set null;
+  add column if not exists account_id uuid references public.accounts(id) on delete set null,
+  add column if not exists password_change_required boolean not null default false;
 
 create table if not exists public.business_profiles (
   id uuid primary key default gen_random_uuid(),

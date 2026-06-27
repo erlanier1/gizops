@@ -22,13 +22,24 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
-  let activeProfile: { role: string; is_active: boolean } | null = null;
+  let activeProfile: { role: string; is_active: boolean; password_change_required?: boolean } | null = null;
   if (session) {
-    const { data: profile } = await supabase
+    let profile: { role: string; is_active: boolean; password_change_required?: boolean } | null = null;
+    const { data: profileWithPasswordFlag, error: profileError } = await supabase
       .from('profiles')
-      .select('role, is_active')
+      .select('role, is_active, password_change_required')
       .eq('id', session.user.id)
       .single();
+    profile = profileWithPasswordFlag;
+
+    if (profileError) {
+      const fallback = await supabase
+        .from('profiles')
+        .select('role, is_active')
+        .eq('id', session.user.id)
+        .single();
+      profile = fallback.data;
+    }
 
     activeProfile = profile?.is_active ? profile : null;
   }
@@ -56,6 +67,10 @@ export async function middleware(req: NextRequest) {
     const url = new URL('/login', req.url);
     url.searchParams.set('reason', 'profile');
     return NextResponse.redirect(url);
+  }
+
+  if (activeProfile.password_change_required && path !== '/auth/change-password') {
+    return NextResponse.redirect(new URL('/auth/change-password', req.url));
   }
 
   // Role-based route protection
