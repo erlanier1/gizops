@@ -82,6 +82,8 @@ Recommended fields:
 - Tagline
 - Enabled modules
 
+Only super admins can delete company records from the Companies page. Deleting a company is permanent and should be used for duplicate or mistakenly created company records.
+
 The platform slug is used by website intake forms and future company-specific links. Example:
 
 ```text

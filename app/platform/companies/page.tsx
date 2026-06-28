@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Building2, CheckCircle2, CreditCard, Loader2, Mail, Plus, Power, Save, SlidersHorizontal } from 'lucide-react';
+import { Building2, CheckCircle2, CreditCard, Loader2, Mail, Plus, Save, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
 import { Toast } from '@/components/ui/toast';
@@ -141,6 +141,7 @@ export default function PlatformCompaniesPage() {
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState<Record<string, boolean>>({});
   const [invitingOwner, setInvitingOwner] = useState<Record<string, boolean>>({});
   const [savingBilling, setSavingBilling] = useState<Record<string, boolean>>({});
   const [savingCustomization, setSavingCustomization] = useState<Record<string, boolean>>({});
@@ -310,19 +311,30 @@ export default function PlatformCompaniesPage() {
     setSaving(false);
   };
 
-  const toggleAccountActive = async (account: AccountRow) => {
-    const { error } = await supabase
-      .from('accounts')
-      .update({ is_active: !account.is_active, updated_at: new Date().toISOString() })
-      .eq('id', account.id);
+  const deleteAccount = async (account: AccountRow) => {
+    const confirmed = window.confirm(`Delete ${account.name}? This permanently removes the company and its company-scoped setup data.`);
+    if (!confirmed) return;
 
-    if (error) {
-      setToast({ message: error.message, type: 'error' });
-      return;
+    setDeletingAccount(prev => ({ ...prev, [account.id]: true }));
+    try {
+      const res = await fetch(`/api/platform/companies/${account.id}`, {
+        method: 'DELETE',
+      });
+      const body = await res.json();
+
+      if (!res.ok) {
+        setToast({ message: body.error ?? 'Company could not be deleted.', type: 'error' });
+        return;
+      }
+
+      setAccounts(prev => prev.filter(item => item.id !== account.id));
+      setToast({ message: `${account.name} was deleted.`, type: 'success' });
+      refreshAccounts();
+    } catch {
+      setToast({ message: 'Company could not be deleted.', type: 'error' });
+    } finally {
+      setDeletingAccount(prev => ({ ...prev, [account.id]: false }));
     }
-
-    setAccounts(prev => prev.map(item => item.id === account.id ? { ...item, is_active: !account.is_active } : item));
-    refreshAccounts();
   };
 
   const openWorkspace = (account: AccountRow) => {
@@ -685,20 +697,23 @@ export default function PlatformCompaniesPage() {
                           <p className="mt-1 break-all font-mono text-[11px] text-mist/70">POST /api/contact-leads with accountSlug: {account.slug}</p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => toggleAccountActive(account)}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-line px-3 py-2 text-xs font-medium text-mist transition-colors hover:bg-hover hover:text-cream"
-                      >
-                        <Power className="h-3.5 w-3.5" />
-                        {account.is_active ? 'Disable' : 'Enable'}
-                      </button>
-                      <button
-                        onClick={() => openWorkspace(account)}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-ember px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-ember-dark"
-                      >
-                        <Building2 className="h-3.5 w-3.5" />
-                        Open Workspace
-                      </button>
+                      <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+                        <button
+                          onClick={() => deleteAccount(account)}
+                          disabled={deletingAccount[account.id]}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-900/70 px-3 py-2 text-xs font-medium text-red-300 transition-colors hover:bg-red-950/40 hover:text-red-200 disabled:opacity-60"
+                        >
+                          {deletingAccount[account.id] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                          Delete
+                        </button>
+                        <button
+                          onClick={() => openWorkspace(account)}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg bg-ember px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-ember-dark"
+                        >
+                          <Building2 className="h-3.5 w-3.5" />
+                          Open Workspace
+                        </button>
+                      </div>
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
