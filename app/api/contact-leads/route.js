@@ -23,6 +23,14 @@ function firstClean(...values) {
   return '';
 }
 
+function cleanList(value) {
+  if (Array.isArray(value)) {
+    return value.map(item => clean(item)).filter(Boolean).join(', ');
+  }
+
+  return clean(value);
+}
+
 function isEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
@@ -68,6 +76,20 @@ function normalizeLeadPayload(body, req) {
   const lastName = clean(data.lastName || data.last_name);
   const combinedName = [firstName, lastName].filter(Boolean).join(' ');
   const formIoSubmissionId = clean(body._id || body.submissionId || body.submission_id || data._id || data.submissionId || data.submission_id);
+  const eventType = firstClean(data.eventType, data.event_type, data.event, body.eventType, body.event_type);
+  const guestCount = firstClean(data.guestCount, data.guest_count, data.guests, body.guestCount, body.guest_count);
+  const eventDate = firstClean(data.eventDate, data.event_date, data.date, body.eventDate, body.event_date);
+  const serviceStyle = firstClean(data.serviceStyle, data.service_style, body.serviceStyle, body.service_style);
+  const interests = cleanList(data.interests || data.interestedIn || data.interested_in || data.whatInterested || data.what_interested || body.interests);
+  const directMessage = firstClean(data.message, data.comments, data.notes, data.details, data.description, data.eventDetails, data.event_details, body.message);
+  const eventSummary = [
+    eventType && `Event type: ${eventType}`,
+    guestCount && `Guest count: ${guestCount}`,
+    eventDate && `Event date: ${eventDate}`,
+    serviceStyle && `Service style: ${serviceStyle}`,
+    interests && `Interested in: ${interests}`,
+    directMessage,
+  ].filter(Boolean).join('\n');
 
   return {
     accountSlug: firstClean(
@@ -93,8 +115,8 @@ function normalizeLeadPayload(body, req) {
     email: firstClean(data.email, data.emailAddress, data.email_address, data.contactEmail, data.contact_email, body.email).toLowerCase(),
     phone: firstClean(data.phone, data.phoneNumber, data.phone_number, data.mobile, body.phone),
     companyName: firstClean(data.companyName, data.company_name, data.company, data.businessName, data.business_name, body.companyName, body.company_name),
-    serviceInterest: firstClean(data.serviceInterest, data.service_interest, data.service, data.interest, data.projectType, data.project_type, body.serviceInterest, body.service_interest),
-    message: firstClean(data.message, data.comments, data.notes, data.details, data.description, body.message),
+    serviceInterest: firstClean(data.serviceInterest, data.service_interest, data.service, data.interest, data.projectType, data.project_type, eventType, body.serviceInterest, body.service_interest),
+    message: eventSummary,
     source: normalizeSource(firstClean(data.source, body.source), body.data ? 'form_io' : 'formspree'),
     consentToContact: data.consentToContact ?? data.consent_to_contact ?? data.consent ?? body.consentToContact ?? body.consent_to_contact ?? true,
     formIoSubmissionId,
