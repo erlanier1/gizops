@@ -6,6 +6,8 @@ import { PageHeader } from '@/components/page-header';
 import { Toast } from '@/components/ui/toast';
 import { OwnerOnly } from '@/components/RoleGuard';
 import { BusinessProfile, useBusinessProfile } from '@/lib/business-profile';
+import { useUser } from '@/lib/auth-context';
+import { useAccountScope } from '@/lib/account-scope';
 
 const inputClass = 'w-full rounded-lg bg-coal border border-line px-3 py-2.5 text-sm text-cream placeholder-mist/40 focus:border-ember focus:outline-none focus:ring-1 focus:ring-ember transition-colors';
 const labelClass = 'block text-xs font-medium text-mist mb-1.5';
@@ -57,9 +59,12 @@ const roleMatrix = [
 
 export default function SettingsPage() {
   const { business, usesLocalStorage, saveBusiness } = useBusinessProfile();
+  const { isSuperAdmin } = useUser();
+  const { selectedAccount, selectedAccountId } = useAccountScope();
   const [form, setForm] = useState<BusinessProfile>(business);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const needsCompanySelection = isSuperAdmin && !selectedAccountId;
 
   useEffect(() => { setForm(business); }, [business]);
 
@@ -68,6 +73,11 @@ export default function SettingsPage() {
   };
 
   const handleSave = async () => {
+    if (needsCompanySelection) {
+      setToast({ message: 'Choose a company workspace before saving shared business settings.', type: 'error' });
+      return;
+    }
+
     setSaving(true);
     const result = await saveBusiness(form);
     setSaving(false);
@@ -89,7 +99,16 @@ export default function SettingsPage() {
 
       {usesLocalStorage && (
         <div className="mb-5 rounded-xl border border-amber-800/70 bg-amber-950/30 px-4 py-3 text-xs leading-5 text-amber-200">
-          Business settings are running locally because this profile is not connected to an account yet or the `business_profiles` table is not available.
+          {needsCompanySelection ? (
+            <>
+              Choose a company workspace from the sidebar before editing shared business settings.
+              <a href="/platform/companies" className="ml-1 font-semibold text-amber-100 underline underline-offset-2">
+                Open Companies
+              </a>
+            </>
+          ) : (
+            'Business settings are saved locally because this user profile is not connected to a company account or the business profile database setup is not available.'
+          )}
         </div>
       )}
 
@@ -156,9 +175,9 @@ export default function SettingsPage() {
             </div>
 
             <div className="mt-5 flex justify-end border-t border-line pt-5">
-              <button onClick={handleSave} disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-ember px-4 py-2 text-sm font-medium text-white hover:bg-ember-dark disabled:opacity-60 transition-colors">
+              <button onClick={handleSave} disabled={saving || needsCompanySelection} className="inline-flex items-center gap-2 rounded-lg bg-ember px-4 py-2 text-sm font-medium text-white hover:bg-ember-dark disabled:opacity-60 transition-colors">
                 {saving ? <Save className="h-4 w-4 animate-pulse" /> : <Save className="h-4 w-4" />}
-                Save Business Profile
+                {selectedAccount ? `Save ${selectedAccount.name} Profile` : 'Save Business Profile'}
               </button>
             </div>
           </section>

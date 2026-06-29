@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Building2, CheckCircle2, CreditCard, Loader2, Mail, Plus, Save, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { AlertCircle, Building2, CheckCircle2, Clock, CreditCard, Loader2, Mail, Plus, Save, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
 import { Toast } from '@/components/ui/toast';
@@ -131,6 +131,34 @@ function billingFormFromAccount(account: AccountRow): BillingForm {
     square_location_id: account.square_location_id ?? '',
     paypal_merchant_id: account.paypal_merchant_id ?? '',
   };
+}
+
+function billingNoticeFor(billing: BillingForm) {
+  if (billing.billing_status === 'past_due') {
+    return {
+      tone: 'urgent',
+      title: 'Past due payment',
+      message: 'Follow up with the company owner and use the saved payment link to collect before changing module access.',
+    };
+  }
+
+  if (billing.billing_status === 'active') {
+    return {
+      tone: 'upcoming',
+      title: 'Upcoming payment reminder',
+      message: 'Check the subscription in Stripe and remind the owner before the next renewal date.',
+    };
+  }
+
+  if (billing.billing_status === 'trialing') {
+    return {
+      tone: 'upcoming',
+      title: 'Trial ending reminder',
+      message: 'Confirm the trial end date and send the owner a reminder before the first paid invoice.',
+    };
+  }
+
+  return null;
 }
 
 export default function PlatformCompaniesPage() {
@@ -668,6 +696,7 @@ export default function PlatformCompaniesPage() {
                   label_overrides: account.label_overrides ?? {},
                 };
                 const previewLabels = labelsForIndustry(customization.industry, customization.label_overrides);
+                const billingNotice = billingNoticeFor(billing);
                 return (
                   <div key={account.id} className="p-5">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -791,6 +820,30 @@ export default function PlatformCompaniesPage() {
                         <CreditCard className="h-4 w-4 text-ember" />
                         <p className="text-xs font-semibold uppercase tracking-wider text-mist/60">Billing</p>
                       </div>
+                      {billingNotice && (
+                        <div className={`mb-4 rounded-lg border px-3 py-2.5 text-xs leading-5 ${
+                          billingNotice.tone === 'urgent'
+                            ? 'border-red-800/70 bg-red-950/30 text-red-200'
+                            : 'border-amber-800/70 bg-amber-950/30 text-amber-200'
+                        }`}>
+                          <div className="flex items-start gap-2">
+                            {billingNotice.tone === 'urgent' ? (
+                              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
+                            ) : (
+                              <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                            )}
+                            <div>
+                              <p className="font-semibold">{billingNotice.title}</p>
+                              <p className="mt-0.5">{billingNotice.message}</p>
+                              {billing.stripe_payment_link && (
+                                <a href={billing.stripe_payment_link} target="_blank" rel="noreferrer" className="mt-1 inline-flex font-semibold underline underline-offset-2">
+                                  Open payment link
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                         <div>
                           <label className={labelClass} htmlFor={`billing-provider-${account.id}`}>Provider</label>
