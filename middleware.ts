@@ -1,4 +1,5 @@
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
@@ -12,6 +13,44 @@ const ROLE_ROUTES: Record<string, string[]> = {
 
 const PUBLIC_ROUTES = ['/login', '/auth'];
 
+type ActiveProfile = {
+  role: string;
+  is_active: boolean;
+  password_change_required?: boolean;
+};
+
+async function getActiveProfile(
+  userId: string,
+  fallbackClient: ReturnType<typeof createMiddlewareClient>
+): Promise<ActiveProfile | null> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const profileClient = supabaseUrl && serviceRoleKey
+    ? createClient(supabaseUrl, serviceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+    : fallbackClient;
+
+  let profile: ActiveProfile | null = null;
+  const { data: profileWithPasswordFlag, error: profileError } = await profileClient
+    .from('profiles')
+    .select('role, is_active, password_change_required')
+    .eq('id', userId)
+    .single();
+  profile = profileWithPasswordFlag;
+
+  if (profileError) {
+    const fallback = await profileClient
+      .from('profiles')
+      .select('role, is_active')
+      .eq('id', userId)
+      .single();
+    profile = fallback.data;
+  }
+
+  return profile?.is_active ? profile : null;
+}
+
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
@@ -22,26 +61,9 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
-  let activeProfile: { role: string; is_active: boolean; password_change_required?: boolean } | null = null;
+  let activeProfile: ActiveProfile | null = null;
   if (session) {
-    let profile: { role: string; is_active: boolean; password_change_required?: boolean } | null = null;
-    const { data: profileWithPasswordFlag, error: profileError } = await supabase
-      .from('profiles')
-      .select('role, is_active, password_change_required')
-      .eq('id', session.user.id)
-      .single();
-    profile = profileWithPasswordFlag;
-
-    if (profileError) {
-      const fallback = await supabase
-        .from('profiles')
-        .select('role, is_active')
-        .eq('id', session.user.id)
-        .single();
-      profile = fallback.data;
-    }
-
-    activeProfile = profile?.is_active ? profile : null;
+    activeProfile = await getActiveProfile(session.user.id, supabase);
   }
 
   // Auth helper routes, including password reset links, must stay reachable even
