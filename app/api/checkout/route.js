@@ -1,4 +1,4 @@
-import { getAppUrl, getStripe } from '@/lib/stripe';
+import { createPayPalOrder, makePaymentContext } from '@/lib/paypal';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
 function orderNumber() {
@@ -8,7 +8,6 @@ function orderNumber() {
 
 export async function POST(req) {
   try {
-    const stripe = getStripe();
     const { items, total, customerName = '', orderSource = 'food_truck' } = await req.json();
 
     if (!items || items.length === 0 || !total) {
@@ -31,7 +30,7 @@ export async function POST(req) {
           customer_name: customerName || null,
           source: orderSource,
           status: 'checkout_pending',
-          payment_method: 'stripe_checkout',
+          payment_method: 'paypal_checkout',
           subtotal: totalInDollars,
           total: totalInDollars,
         })
@@ -60,43 +59,24 @@ export async function POST(req) {
       console.error('POS order storage warning:', error);
     }
 
-    // Format line items for Stripe
-    const lineItems = items.map((item) => ({
-      price_data: {
-        currency: 'usd',
-        product_data: {
-          name: item.name,
-        },
-        unit_amount: Math.round(item.price * 100), // Convert to cents
-      },
-      quantity: item.quantity,
-    }));
-
-    // Create Stripe Checkout session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: lineItems,
-      mode: 'payment',
-      success_url: `${getAppUrl()}/pos?payment=success${posOrderId ? `&order=${posOrderId}` : ''}`,
-      cancel_url: `${getAppUrl()}/pos?payment=cancelled`,
-      metadata: {
-        order_type: 'pos',
-        posOrderId,
-        orderSource,
-        item_count: String(items.length),
-      },
+    const order = await createPayPalOrder({
+      amount: totalInDollars,
+      description: `GizOps POS order${customerName ? ` for ${customerName}` : ''}`,
+      customId: makePaymentContext({ type: 'pos', pos: posOrderId }),
+      returnTo: '/pos',
+      items: items.map(item => ({ name: item.name, quantity: Number(item.quantity), unitAmount: Number(item.price) })),
     });
 
     if (posOrderId) {
       await supabaseAdmin
         .from('pos_orders')
-        .update({ stripe_checkout_session_id: session.id })
+        .update({ paypal_order_id: order.id })
         .eq('id', posOrderId);
     }
 
-    return Response.json({ sessionId: session.id, url: session.url, posOrderId, warning: databaseWarning });
+    return Response.json({ orderId: order.id, sessionId: order.id, url: order.url, posOrderId, warning: databaseWarning });
   } catch (error) {
-    console.error('Stripe error:', error);
+    console.error('PayPal checkout error:', error);
     return Response.json(
       { error: 'Failed to create checkout session' },
       { status: 500 }

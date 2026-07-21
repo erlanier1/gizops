@@ -111,7 +111,7 @@ export default function ReportsPage() {
       <div className="mt-6 rounded-xl border border-line bg-smoke p-5">
         <p className="text-sm font-semibold text-cream mb-1">Report data sources</p>
         <p className="text-xs leading-5 text-mist/70">
-          Reports pull from bookings, permits, and documents. Payment status uses booking deposit fields and Stripe webhook updates where a booking is linked to the payment.
+          Reports pull from bookings, permits, and documents. Payment status uses booking deposit fields and PayPal webhook updates where a booking is linked to the payment.
         </p>
       </div>
     </div>

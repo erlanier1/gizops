@@ -1,8 +1,7 @@
-import { getAppUrl, getStripe } from '@/lib/stripe';
+import { createPayPalOrder, makePaymentContext } from '@/lib/paypal';
 
 export async function POST(req) {
   try {
-    const stripe = getStripe();
     const {
       bookingId,
       mealPrepClientId,
@@ -29,38 +28,16 @@ export async function POST(req) {
       );
     }
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'payment',
-      customer_email: email,
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: description || `${eventType.replace('_', ' ')} deposit`,
-              description: eventDate ? `Scheduled for ${eventDate}` : undefined,
-            },
-            unit_amount: amountInCents,
-          },
-          quantity: 1,
-        },
-      ],
-      success_url: `${getAppUrl()}/dashboard?payment=success`,
-      cancel_url: `${getAppUrl()}/meal-prep/payments?payment=cancelled`,
-      metadata: {
-        payment_type: 'deposit',
-        bookingId: bookingId ?? '',
-        mealPrepClientId: mealPrepClientId ?? '',
-        clientName,
-        eventDate: eventDate ?? '',
-        eventType,
-      },
+    const order = await createPayPalOrder({
+      amount: amountInCents / 100,
+      description: description || `${eventType.replace('_', ' ')} deposit${eventDate ? ` (${eventDate})` : ''}`,
+      customId: makePaymentContext({ type: 'deposit', booking: bookingId, meal: mealPrepClientId }),
+      returnTo: mealPrepClientId ? '/meal-prep/payments' : '/dashboard',
     });
 
-    return Response.json({ url: session.url, sessionId: session.id });
+    return Response.json({ url: order.url, orderId: order.id, sessionId: order.id });
   } catch (error) {
-    console.error('Deposit payment link error:', error);
+    console.error('PayPal deposit link error:', error);
     return Response.json(
       { error: error.message || 'Failed to create deposit payment link.' },
       { status: 500 }

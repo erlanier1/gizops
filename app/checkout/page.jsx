@@ -22,7 +22,7 @@ export default function DepositCheckout() {
     setLoading(true);
 
     try {
-      // Call your backend API to create a Stripe Checkout session
+      // Create a PayPal order and redirect to PayPal for approval.
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -52,7 +52,7 @@ export default function DepositCheckout() {
 
         <form onSubmit={handleCheckout} className="checkout-form">
           <div className="security-note">
-            Card information is not stored in GizOps. Payments are processed by Stripe; we only capture contact information needed for your booking.
+            Card information is not stored in GizOps. Payments are processed by PayPal; we only capture contact information needed for your booking.
           </div>
 
           <div className="form-group">

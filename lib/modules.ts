@@ -30,7 +30,7 @@ export const APP_MODULES: AppModule[] = [
   { key: 'bookings', label: 'Bookings', description: 'Food truck and catering event booking pipeline.' },
   { key: 'permits', label: 'Compliance', description: 'Permits, licenses, inspections, insurance, and renewal tracking.' },
   { key: 'proposals', label: 'Proposals', description: 'Catering proposals, contract drafts, and client emails.' },
-  { key: 'pos', label: 'POS', description: 'Food truck order taking with Stripe Checkout.' },
+  { key: 'pos', label: 'POS', description: 'Food truck order taking with PayPal Checkout.' },
   { key: 'inventory', label: 'Inventory', description: 'Supply tracking and POS inventory deduction.' },
   { key: 'receipts', label: 'Receipts', description: 'Purchase receipt storage, review, and expense tracking.' },
   { key: 'contacts', label: 'Contacts', description: 'Website leads, client contact info, and follow-up status.' },
