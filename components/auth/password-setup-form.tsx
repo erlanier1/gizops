@@ -97,6 +97,8 @@ export function PasswordSetupForm({ mode }: PasswordSetupFormProps) {
     const verifyLinkOrSession = async () => {
       const url = new URL(window.location.href);
       const code = url.searchParams.get('code');
+      const tokenHash = url.searchParams.get('token_hash');
+      const verificationType = url.searchParams.get('type');
       const linkError = url.searchParams.get('error_description') || url.searchParams.get('error');
 
       if (linkError) {
@@ -110,6 +112,20 @@ export function PasswordSetupForm({ mode }: PasswordSetupFormProps) {
           markFailed(exchangeError.message);
           return;
         }
+        markReady();
+        return;
+      }
+
+      if (tokenHash && verificationType === 'recovery') {
+        const { error: verificationError } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: 'recovery',
+        });
+        if (verificationError) {
+          markFailed(verificationError.message);
+          return;
+        }
+        window.history.replaceState({}, document.title, '/auth/reset-password');
         markReady();
         return;
       }
