@@ -8,6 +8,7 @@ import { Toast } from '@/components/ui/toast';
 import { ManagerAndAbove, OwnerOnly } from '@/components/RoleGuard';
 import { ModuleGate } from '@/components/ModuleGate';
 import { FileText, Plus, Pencil, Trash2, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+import { useAccountScope } from '@/lib/account-scope';
 
 interface DBPermit extends Permit {
   id: string;
@@ -42,6 +43,7 @@ function Spinner() {
 
 export default function PermitsPage() {
   const supabase = createClientComponentClient();
+  const { selectedAccountId } = useAccountScope();
   const [permits, setPermits] = useState<DBPermit[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -50,10 +52,11 @@ export default function PermitsPage() {
 
   const fetch = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase.from('permits').select('*').order('expiration_date', { ascending: true });
+    if (!selectedAccountId) { setPermits([]); setLoading(false); return; }
+    const { data } = await supabase.from('permits').select('*').eq('account_id', selectedAccountId).order('expiration_date', { ascending: true });
     setPermits((data as DBPermit[]) ?? []);
     setLoading(false);
-  }, [supabase]);
+  }, [selectedAccountId, supabase]);
 
   useEffect(() => { fetch(); }, [fetch]);
 

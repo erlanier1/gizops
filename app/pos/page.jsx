@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { ModuleGate } from '@/components/ModuleGate';
+import { useAccountScope } from '@/lib/account-scope';
 
 export default function POSPage() {
+  const { selectedAccountId } = useAccountScope();
   const [menuItems, setMenuItems] = useState([]);
   const [cart, setCart] = useState([]);
   const [customerName, setCustomerName] = useState('');
@@ -15,7 +17,8 @@ export default function POSPage() {
   useEffect(() => {
     const loadMenu = async () => {
       try {
-        const response = await fetch('/api/pos/menu-items');
+        if (!selectedAccountId) { setMenuItems([]); return; }
+        const response = await fetch(`/api/pos/menu-items?accountId=${encodeURIComponent(selectedAccountId)}`);
         const items = await response.json();
         setMenuItems(items);
       } catch (error) {
@@ -32,7 +35,7 @@ export default function POSPage() {
       }
     };
     loadMenu();
-  }, []);
+  }, [selectedAccountId]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -95,6 +98,10 @@ export default function POSPage() {
       alert('Cart is empty');
       return;
     }
+    if (!selectedAccountId) {
+      alert('Choose a company workspace before starting checkout.');
+      return;
+    }
 
     setLoading(true);
 
@@ -106,6 +113,7 @@ export default function POSPage() {
           items: cart,
           customerName,
           orderSource: 'food_truck',
+          accountId: selectedAccountId,
           total: Math.round(orderTotal * 100), // Convert to cents
         }),
       });
@@ -134,7 +142,7 @@ export default function POSPage() {
       <header className="pos-header">
         <div>
           <h1>Food Truck POS</h1>
-          <p>Stripe Checkout orders tie back to POS history and mapped inventory recipes.</p>
+          <p>PayPal Checkout orders tie back to POS history and mapped inventory recipes.</p>
         </div>
         <div className="total-display">
           Total: <span className="amount">${orderTotal.toFixed(2)}</span>
@@ -232,10 +240,10 @@ export default function POSPage() {
                   disabled={loading}
                   className="pay-button"
                 >
-                  {loading ? 'Opening Stripe...' : 'Pay with Stripe'}
+                  {loading ? 'Opening PayPal...' : 'Pay with PayPal'}
                 </button>
                 <p className="payment-note">
-                  Card information is processed by Stripe and is not stored in GizOps. Inventory deducts after successful Stripe payment when menu recipes are mapped.
+                  Card information is processed by PayPal and is not stored in GizOps. Inventory deducts after successful PayPal payment when menu recipes are mapped.
                 </p>
                 <button onClick={clearCart} className="clear-button">
                   Clear Order

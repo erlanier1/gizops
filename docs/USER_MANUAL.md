@@ -187,9 +187,9 @@ Supported billing fields:
 
 Recommended current setup:
 
-- Use Stripe for platform subscriptions and deposits.
-- Store the Stripe payment link on the company record.
-- Use Square or PayPal fields only when those processors are needed later.
+- Use PayPal for customer deposits, invoices, and POS checkout.
+- Stripe fields on the company record are reserved for optional GizOps platform subscriptions or legacy billing links.
+- Store the relevant processor identifiers on the company record when they are used.
 
 Payment note for customers:
 
@@ -321,7 +321,7 @@ Client records can include:
 - Allergies
 - Deposit amount
 - Payment status
-- Stripe payment link
+- PayPal payment link
 
 Use this for individual, family, corporate, and daycare meal prep customers.
 
@@ -375,12 +375,12 @@ The POS module is intended for taking orders, especially for food truck operatio
 The long-term workflow is:
 
 1. Take the order in POS.
-2. Send the customer to Stripe Checkout or another payment processor.
+2. Send the customer to PayPal checkout.
 3. Record the order in GizOps.
 4. Deduct supplies from inventory.
 5. Include sales/order data in reports.
 
-Current Stripe payment processing depends on production environment variables.
+PayPal payment processing depends on the production PayPal credentials and webhook configuration.
 
 ## Inventory
 
@@ -551,7 +551,7 @@ Before moving a company to production:
 - Owner invite is sent.
 - Team invite email has been tested from inside GizOps.
 - Billing provider and payment links are saved.
-- Stripe environment variables are configured in Vercel.
+- PayPal environment variables and webhook are configured in Vercel.
 - Resend domain and invite sender are verified.
 - Supabase SQL files have been run.
 - Receipts upload and preview have been tested if the Receipts module is enabled.
@@ -584,10 +584,12 @@ NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
 NEXT_PUBLIC_APP_URL
-STRIPE_PUBLISHABLE_KEY
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-STRIPE_SECRET_KEY
-STRIPE_WEBHOOK_SECRET
+PAYPAL_CLIENT_ID
+PAYPAL_CLIENT_SECRET
+PAYPAL_WEBHOOK_ID
+PAYPAL_ENVIRONMENT
+PAYPAL_BRAND_NAME
+PAYPAL_INVOICER_NAME
 RESEND_API_KEY
 CONTACT_FROM_EMAIL
 INVITE_FROM_EMAIL

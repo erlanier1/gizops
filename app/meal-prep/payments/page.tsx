@@ -7,6 +7,7 @@ import { Copy, CreditCard, ExternalLink, Loader2, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { Toast } from '@/components/ui/toast';
 import { ModuleGate } from '@/components/ModuleGate';
+import { useAccountScope } from '@/lib/account-scope';
 
 type MealPrepClient = {
   id: string;
@@ -18,8 +19,8 @@ type MealPrepClient = {
   delivery_window: string | null;
   deposit_amount: number;
   payment_status: 'pending' | 'deposit_paid' | 'invoiced' | 'paid' | 'cancelled';
-  stripe_checkout_session_id: string | null;
-  stripe_payment_link: string | null;
+  paypal_order_id: string | null;
+  paypal_payment_link: string | null;
   status: 'active' | 'paused' | 'cancelled';
 };
 
@@ -45,6 +46,7 @@ function statusClass(status: MealPrepClient['payment_status']) {
 
 export default function MealPrepPaymentsPage() {
   const supabase = createClientComponentClient();
+  const { selectedAccountId } = useAccountScope();
   const [clients, setClients] = useState<MealPrepClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [creatingId, setCreatingId] = useState<string | null>(null);
@@ -64,9 +66,11 @@ export default function MealPrepPaymentsPage() {
 
   const fetchClients = useCallback(async () => {
     setLoading(true);
+    if (!selectedAccountId) { setClients([]); setLoading(false); return; }
     const { data, error } = await supabase
       .from('meal_prep_clients')
       .select('*')
+      .eq('account_id', selectedAccountId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -78,7 +82,7 @@ export default function MealPrepPaymentsPage() {
     setUsesLocalStorage(false);
     setClients((data as MealPrepClient[]) ?? []);
     setLoading(false);
-  }, [loadLocal, supabase]);
+  }, [loadLocal, selectedAccountId, supabase]);
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
 
@@ -118,8 +122,8 @@ export default function MealPrepPaymentsPage() {
 
       const updated = {
         ...client,
-        stripe_payment_link: body.url,
-        stripe_checkout_session_id: body.sessionId,
+        paypal_payment_link: body.url,
+        paypal_order_id: body.orderId,
         payment_status: 'pending' as const,
       };
 
@@ -129,8 +133,8 @@ export default function MealPrepPaymentsPage() {
         await supabase
           .from('meal_prep_clients')
           .update({
-            stripe_payment_link: body.url,
-            stripe_checkout_session_id: body.sessionId,
+            paypal_payment_link: body.url,
+            paypal_order_id: body.orderId,
             payment_status: 'pending',
             updated_at: new Date().toISOString(),
           })
@@ -151,7 +155,7 @@ export default function MealPrepPaymentsPage() {
     <div>
       <PageHeader
         title="Meal Prep Payments"
-        description="Track deposits, outstanding balances, and Stripe links for meal prep clients."
+        description="Track deposits, outstanding balances, and PayPal links for meal prep clients."
         action={
           <Link href="/meal-prep/clients" className="inline-flex items-center gap-1.5 rounded-lg bg-ember px-3 py-2 text-xs font-medium text-white hover:bg-ember-dark transition-colors">
             <Plus className="h-3.5 w-3.5" />
@@ -216,12 +220,12 @@ export default function MealPrepPaymentsPage() {
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2 lg:justify-end">
-                  {client.stripe_payment_link ? (
+                  {client.paypal_payment_link ? (
                     <>
-                      <button type="button" onClick={() => copyLink(client.stripe_payment_link)} className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-medium text-mist hover:bg-hover hover:text-cream transition-colors">
+                      <button type="button" onClick={() => copyLink(client.paypal_payment_link)} className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-medium text-mist hover:bg-hover hover:text-cream transition-colors">
                         <Copy className="h-3.5 w-3.5" /> Copy
                       </button>
-                      <a href={client.stripe_payment_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-medium text-mist hover:bg-hover hover:text-cream transition-colors">
+                      <a href={client.paypal_payment_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-medium text-mist hover:bg-hover hover:text-cream transition-colors">
                         <ExternalLink className="h-3.5 w-3.5" /> Open
                       </a>
                     </>
@@ -241,7 +245,7 @@ export default function MealPrepPaymentsPage() {
       <div className="mt-5 rounded-xl border border-line bg-smoke p-5">
         <p className="text-sm font-semibold text-cream mb-1">Payment privacy</p>
         <p className="text-xs leading-5 text-mist/70">
-          Card information is not stored in GizOps. Payments are processed by Stripe; we only capture contact information and payment status needed for client follow-up.
+          Card information is not stored in GizOps. Payments are processed by PayPal; we only capture contact information and payment status needed for client follow-up.
         </p>
       </div>
 

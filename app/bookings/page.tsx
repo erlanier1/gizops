@@ -9,6 +9,7 @@ import { ManagerAndAbove, OwnerOnly } from '@/components/RoleGuard';
 import { ModuleGate } from '@/components/ModuleGate';
 import { useUser } from '@/lib/auth-context';
 import { CalendarDays, Users, DollarSign, Plus, Pencil, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { useAccountScope } from '@/lib/account-scope';
 
 type Stage = 'inquiry' | 'quoted' | 'confirmed' | 'completed';
 
@@ -58,6 +59,7 @@ function Spinner() {
 export default function BookingsPage() {
   const supabase = createClientComponentClient();
   const { isStaff } = useUser();
+  const { selectedAccountId } = useAccountScope();
   const [bookings, setBookings] = useState<DBBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -66,10 +68,11 @@ export default function BookingsPage() {
 
   const fetch = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase.from('bookings').select('*').order('event_date', { ascending: true });
+    if (!selectedAccountId) { setBookings([]); setLoading(false); return; }
+    const { data } = await supabase.from('bookings').select('*').eq('account_id', selectedAccountId).order('event_date', { ascending: true });
     setBookings((data as DBBooking[]) ?? []);
     setLoading(false);
-  }, [supabase]);
+  }, [selectedAccountId, supabase]);
 
   useEffect(() => { fetch(); }, [fetch]);
 

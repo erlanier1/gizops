@@ -6,6 +6,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { CalendarDays, ChefHat, CreditCard, MapPin, Plus, Users } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { ModuleGate } from '@/components/ModuleGate';
+import { useAccountScope } from '@/lib/account-scope';
 
 type MealPrepClient = {
   id: string;
@@ -40,6 +41,7 @@ function fmtDate(date: string | null) {
 
 export default function MealPrepSchedulePage() {
   const supabase = createClientComponentClient();
+  const { selectedAccountId } = useAccountScope();
   const [clients, setClients] = useState<MealPrepClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [usesLocalStorage, setUsesLocalStorage] = useState(false);
@@ -52,9 +54,11 @@ export default function MealPrepSchedulePage() {
 
   const fetchClients = useCallback(async () => {
     setLoading(true);
+    if (!selectedAccountId) { setClients([]); setLoading(false); return; }
     const { data, error } = await supabase
       .from('meal_prep_clients')
       .select('*')
+      .eq('account_id', selectedAccountId)
       .neq('status', 'cancelled')
       .order('start_date', { ascending: true });
 
@@ -67,7 +71,7 @@ export default function MealPrepSchedulePage() {
     setUsesLocalStorage(false);
     setClients((data as MealPrepClient[]) ?? []);
     setLoading(false);
-  }, [loadLocal, supabase]);
+  }, [loadLocal, selectedAccountId, supabase]);
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
 

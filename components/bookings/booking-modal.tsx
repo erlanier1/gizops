@@ -5,6 +5,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Modal } from '@/components/ui/modal';
 import { withTimeout } from '@/lib/with-timeout';
 import { Loader2, RotateCcw } from 'lucide-react';
+import { useAccountScope } from '@/lib/account-scope';
 
 const DRAFT_KEY = 'gizops_draft_booking';
 
@@ -41,6 +42,7 @@ const empty: Booking = {
 
 export function BookingModal({ open, onClose, onSaved, booking }: BookingModalProps) {
   const supabase = createClientComponentClient();
+  const { selectedAccountId } = useAccountScope();
   const [form, setForm] = useState<Booking>(empty);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +89,10 @@ export function BookingModal({ open, onClose, onSaved, booking }: BookingModalPr
       setError('Client name and event date are required.');
       return;
     }
+    if (!selectedAccountId) {
+      setError('Choose a company workspace before saving a booking.');
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -103,6 +109,7 @@ export function BookingModal({ open, onClose, onSaved, booking }: BookingModalPr
       quote_amount: form.quote_amount ? parseFloat(form.quote_amount) : null,
       deposit_amount: form.deposit_amount ? parseFloat(form.deposit_amount) : null,
       notes: form.notes || null,
+      account_id: selectedAccountId,
       ...(isEdit ? {} : { status: 'inquiry' }),
     };
 

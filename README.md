@@ -30,13 +30,17 @@ Website contact intake and email notifications use:
 - `CONTACT_FROM_EMAIL` - verified sender address for contact lead notifications and fallback app emails.
 - `INVITE_FROM_EMAIL` - optional verified sender address for GizOps user invitations.
 
-Stripe payments also require:
+PayPal payments require a PayPal REST app:
 
-- `STRIPE_PUBLISHABLE_KEY` - publishable Stripe key for reference in deployment settings.
-- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - browser-safe publishable key when client-side Stripe.js is needed.
-- `STRIPE_SECRET_KEY` - server-only Stripe secret key used by Checkout, Payment Links, and Invoicing.
-- `STRIPE_WEBHOOK_SECRET` - server-only webhook signing secret for `/api/stripe/webhook`.
-- `NEXT_PUBLIC_APP_URL` - the app URL used in Stripe success and cancel redirects.
+- `PAYPAL_CLIENT_ID` - server-side REST app client ID.
+- `PAYPAL_CLIENT_SECRET` - server-only REST app secret.
+- `PAYPAL_WEBHOOK_ID` - ID of the webhook registered for `/api/paypal/webhook`.
+- `PAYPAL_ENVIRONMENT` - `sandbox` while testing, then `live` for production.
+- `PAYPAL_BRAND_NAME` - customer-facing checkout brand name.
+- `PAYPAL_INVOICER_NAME` - sender name used on PayPal invoices.
+- `NEXT_PUBLIC_APP_URL` - deployed GizOps URL used for PayPal return and cancel redirects.
+
+Never commit the real secret values. Put them in `.env.local` for local work and in Vercel Project Settings for deployment.
 
 For Vercel, set those values in Project Settings -> Environment Variables. For local testing, set them in `.env.local` and restart the server.
 
@@ -76,12 +80,16 @@ await fetch('https://your-gizops-domain.com/api/contact-leads', {
 
 The lead is saved to `contact_leads`. If `RESEND_API_KEY`, `CONTACT_FROM_EMAIL`, and the business profile contact email are configured, GizOps also sends a notification email.
 
-### Stripe Payment Flows
+### PayPal Payment Flows
 
-- Deposit collection uses Stripe Checkout through `/api/create-checkout-session`.
+- Deposit collection creates a PayPal order through `/api/create-checkout-session`.
 - Reminder emails can request a one-time deposit URL from `/api/payments/deposit-link` and include the returned `url`.
-- Corporate/daycare invoices can be created through `/api/payments/invoice`, which sends a Stripe invoice supporting ACH (`us_bank_account`) and card.
-- Stripe webhook events at `/api/stripe/webhook` mark linked bookings as `deposit_paid` and `confirmed` when metadata includes `bookingId`.
+- Corporate/daycare invoices can be created and emailed through PayPal Invoicing at `/api/payments/invoice`.
+- PayPal returns approved orders through `/api/paypal/capture`; the server captures payment before marking it paid.
+- Create a PayPal webhook pointing to `/api/paypal/webhook` and subscribe to `PAYMENT.CAPTURE.COMPLETED`.
+- Run `supabase/paypal_migration.sql` in Supabase before enabling live payments.
+
+See `docs/PAYPAL_SETUP.md` for the complete sandbox-to-live checklist.
 
 ## Sections
 

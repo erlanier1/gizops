@@ -7,6 +7,7 @@ import { AlertTriangle, CalendarDays, Copy, CreditCard, ExternalLink, Loader2, M
 import { PageHeader } from '@/components/page-header';
 import { Toast } from '@/components/ui/toast';
 import { ModuleGate } from '@/components/ModuleGate';
+import { useAccountScope } from '@/lib/account-scope';
 
 type MealPrepClient = {
   id: string;
@@ -23,8 +24,8 @@ type MealPrepClient = {
   allergies: string | null;
   deposit_amount: number;
   payment_status: 'pending' | 'deposit_paid' | 'invoiced' | 'paid' | 'cancelled';
-  stripe_checkout_session_id: string | null;
-  stripe_payment_link: string | null;
+  paypal_order_id: string | null;
+  paypal_payment_link: string | null;
   status: 'active' | 'paused' | 'cancelled';
   created_at?: string;
   updated_at?: string;
@@ -72,8 +73,8 @@ const seedClients: MealPrepClient[] = [
     allergies: 'Nut-free',
     deposit_amount: 150,
     payment_status: 'pending',
-    stripe_checkout_session_id: null,
-    stripe_payment_link: null,
+    paypal_order_id: null,
+    paypal_payment_link: null,
     status: 'active',
   },
 ];
@@ -92,6 +93,7 @@ function statusClass(status: MealPrepClient['payment_status']) {
 
 export default function MealPrepClientsPage() {
   const supabase = createClientComponentClient();
+  const { selectedAccountId } = useAccountScope();
   const [client, setClient] = useState(initialClient);
   const [clients, setClients] = useState<MealPrepClient[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
@@ -116,9 +118,11 @@ export default function MealPrepClientsPage() {
 
   const fetchClients = useCallback(async () => {
     setLoading(true);
+    if (!selectedAccountId) { setClients([]); setLoading(false); return; }
     const { data, error } = await supabase
       .from('meal_prep_clients')
       .select('*')
+      .eq('account_id', selectedAccountId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -130,7 +134,7 @@ export default function MealPrepClientsPage() {
     setUsesLocalStorage(false);
     setClients((data as MealPrepClient[]) ?? []);
     setLoading(false);
-  }, [loadLocal, supabase]);
+  }, [loadLocal, selectedAccountId, supabase]);
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
 
@@ -161,6 +165,10 @@ export default function MealPrepClientsPage() {
       setToast({ message: 'Client name and email are required.', type: 'error' });
       return null;
     }
+    if (!selectedAccountId) {
+      setToast({ message: 'Choose a company workspace before saving a meal-prep client.', type: 'error' });
+      return null;
+    }
 
     setSaving(true);
     const payload = payloadFromForm();
@@ -169,8 +177,8 @@ export default function MealPrepClientsPage() {
       const localClient: MealPrepClient = {
         id: selectedClientId ?? crypto.randomUUID(),
         ...payload,
-        stripe_checkout_session_id: null,
-        stripe_payment_link: null,
+        paypal_order_id: null,
+        paypal_payment_link: null,
       };
       const nextClients = selectedClientId
         ? clients.map(item => item.id === selectedClientId ? { ...item, ...localClient } : item)
@@ -184,7 +192,7 @@ export default function MealPrepClientsPage() {
 
     const request = selectedClientId
       ? supabase.from('meal_prep_clients').update(payload).eq('id', selectedClientId).select().single()
-      : supabase.from('meal_prep_clients').insert(payload).select().single();
+      : supabase.from('meal_prep_clients').insert({ ...payload, account_id: selectedAccountId }).select().single();
 
     const { data, error } = await request;
     setSaving(false);
@@ -242,8 +250,8 @@ export default function MealPrepClientsPage() {
 
       const updatedClient = {
         ...savedClient,
-        stripe_checkout_session_id: body.sessionId,
-        stripe_payment_link: body.url,
+        paypal_order_id: body.orderId,
+        paypal_payment_link: body.url,
         payment_status: 'pending' as const,
         updated_at: new Date().toISOString(),
       };
@@ -254,8 +262,8 @@ export default function MealPrepClientsPage() {
         await supabase
           .from('meal_prep_clients')
           .update({
-            stripe_checkout_session_id: body.sessionId,
-            stripe_payment_link: body.url,
+            paypal_order_id: body.orderId,
+            paypal_payment_link: body.url,
             payment_status: 'pending',
             updated_at: updatedClient.updated_at,
           })
@@ -263,7 +271,7 @@ export default function MealPrepClientsPage() {
         setClients(prev => prev.map(item => item.id === savedClient.id ? updatedClient : item));
       }
 
-      setToast({ message: 'Stripe payment link created and attached to the client.', type: 'success' });
+      setToast({ message: 'PayPal payment link created and attached to the client.', type: 'success' });
     } catch (error) {
       setToast({
         message: error instanceof Error ? error.message : 'Failed to create payment link.',
@@ -296,7 +304,7 @@ export default function MealPrepClientsPage() {
       allergies: item.allergies ?? '',
       amount: item.deposit_amount.toString(),
     });
-    setPaymentUrl(item.stripe_payment_link ?? '');
+    setPaymentUrl(item.paypal_payment_link ?? '');
   };
 
   const resetForm = () => {
@@ -310,7 +318,7 @@ export default function MealPrepClientsPage() {
     <div>
       <PageHeader
         title="Meal Prep Clients"
-        description="Add new meal prep clients, save intake details, and create a Stripe deposit link."
+        description="Add new meal prep clients, save intake details, and create a PayPal deposit link."
         action={
           <Link
             href="/meal-prep/payments"
@@ -405,7 +413,7 @@ export default function MealPrepClientsPage() {
 
           <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-line pt-5">
             <div className="basis-full rounded-lg border border-line bg-coal px-3 py-2 text-xs leading-5 text-mist/70">
-              Card information is not stored in GizOps. Payments are processed by Stripe; we only capture contact information needed for meal prep intake and follow-up.
+              Card information is not stored in GizOps. Payments are processed by PayPal; we only capture contact information needed for meal prep intake and follow-up.
             </div>
 
             <button type="button" onClick={saveClient} disabled={saving} className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium text-mist hover:bg-hover hover:text-cream disabled:opacity-60 transition-colors">
@@ -415,7 +423,7 @@ export default function MealPrepClientsPage() {
 
             <button type="button" onClick={createPaymentLink} disabled={creatingPayment || saving} className="inline-flex items-center gap-2 rounded-lg bg-ember px-4 py-2 text-sm font-medium text-white hover:bg-ember-dark disabled:opacity-60 transition-colors">
               {creatingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-              Create Stripe Link
+              Create PayPal Link
             </button>
 
             {paymentUrl && (
@@ -426,7 +434,7 @@ export default function MealPrepClientsPage() {
                 </button>
                 <a href={paymentUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium text-mist hover:bg-hover hover:text-cream transition-colors">
                   <ExternalLink className="h-4 w-4" />
-                  Open Stripe
+                  Open PayPal
                 </a>
               </>
             )}
@@ -479,7 +487,7 @@ export default function MealPrepClientsPage() {
               <p className="text-sm font-semibold text-cream">Data note</p>
             </div>
             <p className="text-xs leading-5 text-mist/70">
-              New clients save to `meal_prep_clients` when the table exists. Stripe payment links store only contact and payment status metadata in GizOps.
+              New clients save to `meal_prep_clients` when the table exists. PayPal payment links store only contact and payment status metadata in GizOps.
             </p>
           </div>
         </aside>

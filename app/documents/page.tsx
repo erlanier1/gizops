@@ -9,6 +9,7 @@ import { ManagerAndAbove, OwnerOnly } from '@/components/RoleGuard';
 import { ModuleGate } from '@/components/ModuleGate';
 import { useUser } from '@/lib/auth-context';
 import { FolderOpen, Upload, FileText, File, Plus, Search, Download, Loader2, X, Trash2 } from 'lucide-react';
+import { useAccountScope } from '@/lib/account-scope';
 
 type Category = 'insurance' | 'permit' | 'commissary' | 'license' | 'certification' | 'contract' | 'other';
 
@@ -50,6 +51,7 @@ function fmtDate(d: string) {
 export default function DocumentsPage() {
   const supabase = createClientComponentClient();
   const { canEdit } = useUser();
+  const { selectedAccountId } = useAccountScope();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [docs, setDocs] = useState<Doc[]>([]);
@@ -66,10 +68,11 @@ export default function DocumentsPage() {
 
   const fetchDocs = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase.from('documents').select('*').order('created_at', { ascending: false });
+    if (!selectedAccountId) { setDocs([]); setLoading(false); return; }
+    const { data } = await supabase.from('documents').select('*').eq('account_id', selectedAccountId).order('created_at', { ascending: false });
     setDocs((data as Doc[]) ?? []);
     setLoading(false);
-  }, [supabase]);
+  }, [selectedAccountId, supabase]);
 
   useEffect(() => { fetchDocs(); }, [fetchDocs]);
 
@@ -88,10 +91,11 @@ export default function DocumentsPage() {
 
   const handleUpload = async () => {
     if (!selectedFile || !form.name) return;
+    if (!selectedAccountId) { setToast({ message: 'Choose a company workspace before uploading a document.', type: 'error' }); return; }
     setUploading(true);
 
     const ext = selectedFile.name.split('.').pop();
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const path = `${selectedAccountId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
     const { error: storageErr } = await supabase.storage.from('business-docs').upload(path, selectedFile);
     if (storageErr) {
@@ -107,6 +111,7 @@ export default function DocumentsPage() {
       file_name: selectedFile.name,
       expiration_date: form.expiration_date || null,
       notes: form.notes || null,
+      account_id: selectedAccountId,
     });
 
     setUploading(false);

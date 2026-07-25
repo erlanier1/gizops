@@ -33,7 +33,7 @@ function DashboardContent() {
   const supabase = createClientComponentClient();
   const searchParams = useSearchParams();
   const { profile, isStaff, isSuperAdmin } = useUser();
-  const { accounts, selectedAccount } = useAccountScope();
+  const { accounts, selectedAccount, selectedAccountId } = useAccountScope();
 
   const [permitOpen, setPermitOpen] = useState(false);
   const [bookingOpen, setBookingOpen] = useState(false);
@@ -49,6 +49,8 @@ function DashboardContent() {
     confirmedValue: 0,
     upcomingBookings: [] as any[],
     expiringPermits: [] as any[],
+    todaysDeliveries: [] as any[],
+    lowStockItems: [] as any[],
   });
 
   // Ensure component is mounted before accessing search params
@@ -69,15 +71,25 @@ function DashboardContent() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [permitsRes, bookingsRes, docsRes] = await Promise.all([
-        supabase.from('permits').select('id, name, expiration_date'),
-        supabase.from('bookings').select('id, client_name, event_date, event_type, status, quote_amount'),
-        supabase.from('documents').select('id'),
+      const accountId = selectedAccountId;
+      if (!accountId) {
+        setData({ permitCount: 0, bookingCount: 0, docCount: 0, confirmedValue: 0, upcomingBookings: [], expiringPermits: [], todaysDeliveries: [], lowStockItems: [] });
+        return;
+      }
+      const scoped = (query: any) => accountId ? query.eq('account_id', accountId) : query;
+      const [permitsRes, bookingsRes, docsRes, mealPrepRes, inventoryRes] = await Promise.all([
+        scoped(supabase.from('permits').select('id, name, expiration_date')),
+        scoped(supabase.from('bookings').select('id, client_name, event_date, event_type, status, quote_amount')),
+        scoped(supabase.from('documents').select('id')),
+        scoped(supabase.from('meal_prep_clients').select('id, client_name, delivery_address, delivery_window, meals_per_week, start_date, status').eq('status', 'active')),
+        scoped(supabase.from('inventory_items').select('id, item_name, quantity_on_hand, par_level, unit').gt('par_level', 0)),
       ]);
 
-      const permits  = permitsRes.data  ?? [];
-      const bookings = bookingsRes.data ?? [];
-      const docs     = docsRes.data     ?? [];
+      const permits: any[] = permitsRes.data ?? [];
+      const bookings: any[] = bookingsRes.data ?? [];
+      const docs: any[] = docsRes.data ?? [];
+      const mealPrepClients: any[] = mealPrepRes.data ?? [];
+      const inventoryItems: any[] = inventoryRes.data ?? [];
       const now      = Date.now();
       const in60Days = now + 60 * 86_400_000;
       const in30Days = now + 30 * 86_400_000;
@@ -100,14 +112,26 @@ function DashboardContent() {
         .filter(b => b.status === 'confirmed')
         .reduce((sum, b) => sum + (b.quote_amount ?? 0), 0);
 
-      setData({ permitCount: permits.length, bookingCount: bookings.length, docCount: docs.length, confirmedValue, upcomingBookings, expiringPermits });
+      const today = new Date();
+      const weekday = today.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      const todayDate = today.toISOString().slice(0, 10);
+      const todaysDeliveries = mealPrepClients
+        .filter(client => String(client.delivery_window ?? '').toLowerCase().includes(weekday) && (!client.start_date || client.start_date <= todayDate))
+        .sort((a, b) => String(a.delivery_window ?? '').localeCompare(String(b.delivery_window ?? '')))
+        .slice(0, 6);
+      const lowStockItems = inventoryItems
+        .filter(item => Number(item.quantity_on_hand) <= Number(item.par_level))
+        .sort((a, b) => (Number(a.quantity_on_hand) / Number(a.par_level)) - (Number(b.quantity_on_hand) / Number(b.par_level)))
+        .slice(0, 6);
+
+      setData({ permitCount: permits.length, bookingCount: bookings.length, docCount: docs.length, confirmedValue, upcomingBookings, expiringPermits, todaysDeliveries, lowStockItems });
     } catch (error) {
       console.error('Dashboard data failed to load:', error);
-      setData({ permitCount: 0, bookingCount: 0, docCount: 0, confirmedValue: 0, upcomingBookings: [], expiringPermits: [] });
+      setData({ permitCount: 0, bookingCount: 0, docCount: 0, confirmedValue: 0, upcomingBookings: [], expiringPermits: [], todaysDeliveries: [], lowStockItems: [] });
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, [isSuperAdmin, profile?.account_id, selectedAccountId, supabase]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -208,13 +232,26 @@ function DashboardContent() {
             <h2 className="text-sm font-semibold text-cream flex items-center gap-2 mb-4">
               <Flame className="h-4 w-4 text-ember" /> Today's Deliveries
             </h2>
-            <div className="flex flex-col items-center justify-center py-10 text-center">
+            {loading ? <Spinner /> : data.todaysDeliveries.length === 0 ? <div className="flex flex-col items-center justify-center py-10 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-hover mb-3">
                 <Flame className="h-6 w-6 text-mist/40" />
               </div>
               <p className="text-sm font-medium text-cream mb-1">No deliveries scheduled today</p>
               <p className="text-xs text-mist/50 max-w-[220px]">Scheduled deliveries for today will appear here once the Meal Prep module is set up.</p>
-            </div>
+            </div> : <div className="space-y-2">
+              {data.todaysDeliveries.map((delivery: any) => (
+                <div key={delivery.id} className="rounded-lg border border-line bg-coal px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-cream">{delivery.client_name}</p>
+                      <p className="mt-0.5 text-xs text-mist">{delivery.delivery_window || 'Delivery time not set'}</p>
+                      <p className="mt-0.5 text-xs text-mist/60">{delivery.delivery_address || 'Delivery address not set'}</p>
+                    </div>
+                    <span className="shrink-0 rounded-full border border-line bg-hover px-2 py-0.5 text-xs text-mist">{delivery.meals_per_week ?? 0} meals</span>
+                  </div>
+                </div>
+              ))}
+            </div>}
           </div>
 
           {/* Low stock alerts — placeholder */}
@@ -222,10 +259,20 @@ function DashboardContent() {
             <h2 className="text-sm font-semibold text-cream flex items-center gap-2 mb-4">
               <Package className="h-4 w-4 text-ember" /> Low Stock Alerts
             </h2>
-            <div className="flex items-center gap-3 rounded-lg bg-green-900/20 border border-green-800/40 px-4 py-3">
+            {loading ? <Spinner /> : data.lowStockItems.length === 0 ? <div className="flex items-center gap-3 rounded-lg bg-green-900/20 border border-green-800/40 px-4 py-3">
               <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
               <p className="text-sm text-green-400">No low stock alerts at this time.</p>
-            </div>
+            </div> : <div className="space-y-2">
+              {data.lowStockItems.map((item: any) => (
+                <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-amber-800/50 bg-amber-950/20 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-cream">{item.item_name}</p>
+                    <p className="mt-0.5 text-xs text-mist">Par level: {item.par_level} {item.unit}</p>
+                  </div>
+                  <span className="shrink-0 text-sm font-semibold text-amber-400">{item.quantity_on_hand} {item.unit}</span>
+                </div>
+              ))}
+            </div>}
           </div>
         </div>
       ) : (

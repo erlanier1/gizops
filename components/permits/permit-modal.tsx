@@ -5,6 +5,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Modal } from '@/components/ui/modal';
 import { withTimeout } from '@/lib/with-timeout';
 import { Loader2, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
+import { useAccountScope } from '@/lib/account-scope';
 
 const DRAFT_KEY = 'gizops_draft_permit';
 
@@ -44,6 +45,7 @@ const empty: Permit = {
 
 export function PermitModal({ open, onClose, onSaved, permit }: PermitModalProps) {
   const supabase = createClientComponentClient();
+  const { selectedAccountId } = useAccountScope();
   const [form, setForm] = useState<Permit>(empty);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +86,7 @@ export function PermitModal({ open, onClose, onSaved, permit }: PermitModalProps
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.expiration_date) { setError('Expiration date is required.'); return; }
+    if (!selectedAccountId) { setError('Choose a company workspace before saving a permit.'); return; }
     setLoading(true);
     setError(null);
 
@@ -95,6 +98,7 @@ export function PermitModal({ open, onClose, onSaved, permit }: PermitModalProps
       expiration_date: form.expiration_date,
       status: form.status,
       notes: form.notes || null,
+      account_id: selectedAccountId,
     };
 
     try {

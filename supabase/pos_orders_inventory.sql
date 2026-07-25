@@ -37,18 +37,19 @@ create table if not exists public.pos_orders (
   customer_name text,
   source text not null default 'food_truck',
   status text not null default 'checkout_pending',
-  payment_method text not null default 'stripe_checkout',
+  payment_method text not null default 'paypal_checkout',
   subtotal numeric not null default 0,
   tax numeric not null default 0,
   total numeric not null default 0,
   stripe_checkout_session_id text,
+  paypal_order_id text,
   inventory_deducted boolean not null default false,
   paid_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint pos_orders_source_check check (source in ('food_truck', 'catering', 'meal_prep', 'other')),
   constraint pos_orders_status_check check (status in ('checkout_pending', 'paid', 'cancelled', 'refunded')),
-  constraint pos_orders_payment_method_check check (payment_method in ('stripe_checkout', 'cash', 'external_card'))
+  constraint pos_orders_payment_method_check check (payment_method in ('paypal_checkout', 'stripe_checkout', 'cash', 'external_card'))
 );
 
 alter table public.pos_orders
@@ -56,15 +57,20 @@ alter table public.pos_orders
   add column if not exists customer_name text,
   add column if not exists source text not null default 'food_truck',
   add column if not exists status text not null default 'checkout_pending',
-  add column if not exists payment_method text not null default 'stripe_checkout',
+  add column if not exists payment_method text not null default 'paypal_checkout',
   add column if not exists subtotal numeric not null default 0,
   add column if not exists tax numeric not null default 0,
   add column if not exists total numeric not null default 0,
   add column if not exists stripe_checkout_session_id text,
+  add column if not exists paypal_order_id text,
   add column if not exists inventory_deducted boolean not null default false,
   add column if not exists paid_at timestamptz,
   add column if not exists created_at timestamptz not null default now(),
   add column if not exists updated_at timestamptz not null default now();
+
+alter table public.pos_orders drop constraint if exists pos_orders_payment_method_check;
+alter table public.pos_orders add constraint pos_orders_payment_method_check
+  check (payment_method in ('paypal_checkout', 'stripe_checkout', 'cash', 'external_card'));
 
 create table if not exists public.pos_order_items (
   id uuid primary key default gen_random_uuid(),

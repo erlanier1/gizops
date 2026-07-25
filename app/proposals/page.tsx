@@ -21,6 +21,7 @@ import { Toast } from '@/components/ui/toast';
 import { ManagerAndAbove, OwnerOnly } from '@/components/RoleGuard';
 import { useBusinessProfile, type BusinessProfile } from '@/lib/business-profile';
 import { ModuleGate } from '@/components/ModuleGate';
+import { useAccountScope } from '@/lib/account-scope';
 
 type ProposalStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired';
 
@@ -243,6 +244,7 @@ function buildProposalHtml(form: ProposalForm, business: BusinessProfile) {
 export default function ProposalsPage() {
   const supabase = createClientComponentClient();
   const { business } = useBusinessProfile();
+  const { selectedAccountId } = useAccountScope();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [bookings, setBookings] = useState<BookingOption[]>([]);
   const [form, setForm] = useState<ProposalForm>({ ...emptyForm, proposal_number: nextProposalNumber() });
@@ -266,9 +268,10 @@ export default function ProposalsPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    if (!selectedAccountId) { setProposals([]); setBookings([]); setLoading(false); return; }
     const [proposalResult, bookingResult] = await Promise.all([
-      supabase.from('catering_proposals').select('*').order('created_at', { ascending: false }),
-      supabase.from('bookings').select('id, client_name, client_email, client_phone, event_date, event_time, event_location, guest_count, package_description, quote_amount, deposit_amount').eq('event_type', 'catering').order('event_date', { ascending: true }),
+      supabase.from('catering_proposals').select('*').eq('account_id', selectedAccountId).order('created_at', { ascending: false }),
+      supabase.from('bookings').select('id, client_name, client_email, client_phone, event_date, event_time, event_location, guest_count, package_description, quote_amount, deposit_amount').eq('account_id', selectedAccountId).eq('event_type', 'catering').order('event_date', { ascending: true }),
     ]);
 
     if (proposalResult.error) {
@@ -280,7 +283,7 @@ export default function ProposalsPage() {
 
     setBookings((bookingResult.data as BookingOption[]) ?? []);
     setLoading(false);
-  }, [loadLocal, supabase]);
+  }, [loadLocal, selectedAccountId, supabase]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -334,6 +337,10 @@ export default function ProposalsPage() {
       setToast({ message: 'Client name is required.', type: 'error' });
       return;
     }
+    if (!selectedAccountId) {
+      setToast({ message: 'Choose a company workspace before saving a proposal.', type: 'error' });
+      return;
+    }
 
     setSaving(true);
     const payload = formToPayload(form);
@@ -355,7 +362,7 @@ export default function ProposalsPage() {
 
     const request = selectedId
       ? supabase.from('catering_proposals').update(payload).eq('id', selectedId).select().single()
-      : supabase.from('catering_proposals').insert(payload).select().single();
+      : supabase.from('catering_proposals').insert({ ...payload, account_id: selectedAccountId }).select().single();
 
     const { data, error } = await request;
     setSaving(false);

@@ -15,6 +15,8 @@ create table if not exists public.meal_prep_clients (
   payment_status text not null default 'pending',
   stripe_checkout_session_id text,
   stripe_payment_link text,
+  paypal_order_id text,
+  paypal_payment_link text,
   status text not null default 'active',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -45,6 +47,8 @@ alter table public.meal_prep_clients
   add column if not exists payment_status text not null default 'pending',
   add column if not exists stripe_checkout_session_id text,
   add column if not exists stripe_payment_link text,
+  add column if not exists paypal_order_id text,
+  add column if not exists paypal_payment_link text,
   add column if not exists status text not null default 'active',
   add column if not exists created_at timestamptz not null default now(),
   add column if not exists updated_at timestamptz not null default now();

@@ -21,6 +21,7 @@ import { Modal } from '@/components/ui/modal';
 import { Toast } from '@/components/ui/toast';
 import { ManagerAndAbove, OwnerOnly } from '@/components/RoleGuard';
 import { ModuleGate } from '@/components/ModuleGate';
+import { useAccountScope } from '@/lib/account-scope';
 
 type InventoryStatus = 'in_stock' | 'low_stock' | 'out_of_stock' | 'expiring_soon' | 'expired';
 
@@ -232,6 +233,7 @@ function Spinner() {
 
 export default function InventoryPage() {
   const supabase = createClientComponentClient();
+  const { selectedAccountId } = useAccountScope();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [usesLocalStorage, setUsesLocalStorage] = useState(false);
@@ -257,9 +259,11 @@ export default function InventoryPage() {
 
   const fetchInventory = useCallback(async () => {
     setLoading(true);
+    if (!selectedAccountId) { setItems([]); setLoading(false); return; }
     const { data, error } = await supabase
       .from('inventory_items')
       .select('*')
+      .eq('account_id', selectedAccountId)
       .order('item_name', { ascending: true });
 
     if (error) {
@@ -271,7 +275,7 @@ export default function InventoryPage() {
     setUsesLocalStorage(false);
     setItems((data as InventoryItem[]) ?? []);
     setLoading(false);
-  }, [loadLocal, supabase]);
+  }, [loadLocal, selectedAccountId, supabase]);
 
   useEffect(() => { fetchInventory(); }, [fetchInventory]);
 
@@ -325,6 +329,10 @@ export default function InventoryPage() {
       setToast({ message: 'Item name is required.', type: 'error' });
       return;
     }
+    if (!selectedAccountId) {
+      setToast({ message: 'Choose a company workspace before saving inventory.', type: 'error' });
+      return;
+    }
 
     const payload = formToPayload(form);
 
@@ -337,7 +345,7 @@ export default function InventoryPage() {
 
     const request = editing
       ? supabase.from('inventory_items').update(payload).eq('id', editing.id).select().single()
-      : supabase.from('inventory_items').insert(payload).select().single();
+      : supabase.from('inventory_items').insert({ ...payload, account_id: selectedAccountId }).select().single();
 
     const { data, error } = await request;
     if (error) {
