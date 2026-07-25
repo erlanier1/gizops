@@ -73,10 +73,14 @@ export async function POST(req) {
       return Response.json({ error: error.message || 'Password reset link could not be generated.' }, { status: 400 });
     }
 
-    const resetLink = data?.properties?.action_link;
-    if (!resetLink) {
+    const tokenHash = data?.properties?.hashed_token;
+    if (!tokenHash) {
       return Response.json({ error: 'Password reset link could not be generated.' }, { status: 500 });
     }
+    const resetUrl = new URL('/auth/reset-password', getAppUrl(req));
+    resetUrl.searchParams.set('token_hash', tokenHash);
+    resetUrl.searchParams.set('type', 'recovery');
+    const resetLink = resetUrl.toString();
 
     const resend = new Resend(apiKey);
     await resend.emails.send({
