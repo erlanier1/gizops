@@ -96,17 +96,23 @@ async function runScopedQuery(table, accountId, orderColumn, orderOptions) {
   return result;
 }
 
-async function fetchReportData(accountId) {
+async function fetchReportData(accountId, filters) {
   const [bookingsRes, permitsRes, docsRes] = await Promise.all([
     runScopedQuery('bookings', accountId, 'event_date', { ascending: true }),
     runScopedQuery('permits', accountId, 'expiration_date', { ascending: true }),
     runScopedQuery('documents', accountId, 'created_at', { ascending: false }),
   ]);
 
+  const inDateRange = (value) => {
+    if (!value) return !filters.startDate && !filters.endDate;
+    const date = String(value).slice(0, 10);
+    return (!filters.startDate || date >= filters.startDate) && (!filters.endDate || date <= filters.endDate);
+  };
+
   return {
-    bookings: bookingsRes.data ?? [],
-    permits: permitsRes.data ?? [],
-    documents: docsRes.data ?? [],
+    bookings: (bookingsRes.data ?? []).filter(row => inDateRange(row.event_date) && (!filters.status || row.status === filters.status)),
+    permits: (permitsRes.data ?? []).filter(row => inDateRange(row.expiration_date)),
+    documents: (docsRes.data ?? []).filter(row => inDateRange(row.created_at)),
   };
 }
 
@@ -330,7 +336,12 @@ export async function GET(req, { params }) {
   const accountId = access.profile.role === 'super_admin'
     ? requestedAccountId
     : access.profile.account_id;
-  const data = await fetchReportData(accountId);
+  const filters = {
+    startDate: url.searchParams.get('startDate') || '',
+    endDate: url.searchParams.get('endDate') || '',
+    status: url.searchParams.get('status') || '',
+  };
+  const data = await fetchReportData(accountId, filters);
   const { columns, rows } = getRows(reportId, data);
 
   return responseFor(format, reportId, report, columns, rows);

@@ -7,6 +7,7 @@ import { Copy, CreditCard, ExternalLink, Loader2, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { Toast } from '@/components/ui/toast';
 import { ModuleGate } from '@/components/ModuleGate';
+import { useAccountScope } from '@/lib/account-scope';
 
 type MealPrepClient = {
   id: string;
@@ -45,6 +46,7 @@ function statusClass(status: MealPrepClient['payment_status']) {
 
 export default function MealPrepPaymentsPage() {
   const supabase = createClientComponentClient();
+  const { selectedAccountId } = useAccountScope();
   const [clients, setClients] = useState<MealPrepClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [creatingId, setCreatingId] = useState<string | null>(null);
@@ -64,9 +66,11 @@ export default function MealPrepPaymentsPage() {
 
   const fetchClients = useCallback(async () => {
     setLoading(true);
+    if (!selectedAccountId) { setClients([]); setLoading(false); return; }
     const { data, error } = await supabase
       .from('meal_prep_clients')
       .select('*')
+      .eq('account_id', selectedAccountId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -78,7 +82,7 @@ export default function MealPrepPaymentsPage() {
     setUsesLocalStorage(false);
     setClients((data as MealPrepClient[]) ?? []);
     setLoading(false);
-  }, [loadLocal, supabase]);
+  }, [loadLocal, selectedAccountId, supabase]);
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
 

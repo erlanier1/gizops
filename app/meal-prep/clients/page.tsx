@@ -7,6 +7,7 @@ import { AlertTriangle, CalendarDays, Copy, CreditCard, ExternalLink, Loader2, M
 import { PageHeader } from '@/components/page-header';
 import { Toast } from '@/components/ui/toast';
 import { ModuleGate } from '@/components/ModuleGate';
+import { useAccountScope } from '@/lib/account-scope';
 
 type MealPrepClient = {
   id: string;
@@ -92,6 +93,7 @@ function statusClass(status: MealPrepClient['payment_status']) {
 
 export default function MealPrepClientsPage() {
   const supabase = createClientComponentClient();
+  const { selectedAccountId } = useAccountScope();
   const [client, setClient] = useState(initialClient);
   const [clients, setClients] = useState<MealPrepClient[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
@@ -116,9 +118,11 @@ export default function MealPrepClientsPage() {
 
   const fetchClients = useCallback(async () => {
     setLoading(true);
+    if (!selectedAccountId) { setClients([]); setLoading(false); return; }
     const { data, error } = await supabase
       .from('meal_prep_clients')
       .select('*')
+      .eq('account_id', selectedAccountId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -130,7 +134,7 @@ export default function MealPrepClientsPage() {
     setUsesLocalStorage(false);
     setClients((data as MealPrepClient[]) ?? []);
     setLoading(false);
-  }, [loadLocal, supabase]);
+  }, [loadLocal, selectedAccountId, supabase]);
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
 
@@ -161,6 +165,10 @@ export default function MealPrepClientsPage() {
       setToast({ message: 'Client name and email are required.', type: 'error' });
       return null;
     }
+    if (!selectedAccountId) {
+      setToast({ message: 'Choose a company workspace before saving a meal-prep client.', type: 'error' });
+      return null;
+    }
 
     setSaving(true);
     const payload = payloadFromForm();
@@ -184,7 +192,7 @@ export default function MealPrepClientsPage() {
 
     const request = selectedClientId
       ? supabase.from('meal_prep_clients').update(payload).eq('id', selectedClientId).select().single()
-      : supabase.from('meal_prep_clients').insert(payload).select().single();
+      : supabase.from('meal_prep_clients').insert({ ...payload, account_id: selectedAccountId }).select().single();
 
     const { data, error } = await request;
     setSaving(false);

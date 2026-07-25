@@ -7,6 +7,7 @@ import {
   LayoutDashboard, FileText, CalendarDays, FolderOpen, Flame,
   ChevronRight, ChefHat, Users, CreditCard, Package, BarChart3,
   Settings, LogOut, Loader2, UserCog, FileSignature, Building2, ContactRound, Receipt,
+  CircleHelp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/lib/auth-context';
@@ -176,6 +177,9 @@ export function Sidebar() {
           <NavItem href="/settings/users" icon={UserCog}   label="Team" />
           <NavItem href="/settings"       icon={Settings}  label="Settings" />
         </RoleGuard>
+
+        <NavSection label="Support" />
+        <NavItem href="/help" icon={CircleHelp} label="Help & User Guide" />
       </nav>
 
       {/* User footer */}

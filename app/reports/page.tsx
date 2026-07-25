@@ -1,8 +1,7 @@
 'use client';
 
-'use client';
-
 import Link from 'next/link';
+import { useState } from 'react';
 import {
   BarChart3,
   CalendarDays,
@@ -58,6 +57,17 @@ const formats = [
 
 export default function ReportsPage() {
   const { selectedAccount, selectedAccountId } = useAccountScope();
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [status, setStatus] = useState('');
+  const reportQuery = (format: string) => {
+    const params = new URLSearchParams({ format });
+    if (selectedAccountId) params.set('accountId', selectedAccountId);
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    if (status) params.set('status', status);
+    return params.toString();
+  };
 
   return (
     <ModuleGate moduleKey="reports">
@@ -69,6 +79,31 @@ export default function ReportsPage() {
           : 'Export standard operations reports in Word, Excel, or PDF formats.'
         }
       />
+
+      <section className="mb-6 rounded-xl border border-line bg-smoke p-5">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <label className="text-xs font-medium text-mist">
+            Start date
+            <input type="date" value={startDate} onChange={event => setStartDate(event.target.value)} className="mt-1.5 w-full rounded-lg border border-line bg-coal px-3 py-2.5 text-sm text-cream focus:border-ember focus:outline-none" />
+          </label>
+          <label className="text-xs font-medium text-mist">
+            End date
+            <input type="date" value={endDate} onChange={event => setEndDate(event.target.value)} className="mt-1.5 w-full rounded-lg border border-line bg-coal px-3 py-2.5 text-sm text-cream focus:border-ember focus:outline-none" />
+          </label>
+          <label className="text-xs font-medium text-mist">
+            Booking status
+            <select value={status} onChange={event => setStatus(event.target.value)} className="mt-1.5 w-full rounded-lg border border-line bg-coal px-3 py-2.5 text-sm text-cream focus:border-ember focus:outline-none">
+              <option value="">All statuses</option>
+              <option value="inquiry">Inquiry</option>
+              <option value="quoted">Quoted</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </label>
+        </div>
+        {(startDate || endDate || status) && <button type="button" onClick={() => { setStartDate(''); setEndDate(''); setStatus(''); }} className="mt-4 text-xs font-medium text-ember hover:text-ember-dark">Clear filters</button>}
+      </section>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {reports.map(report => {
@@ -91,7 +126,7 @@ export default function ReportsPage() {
                       return (
                         <Link
                           key={format.key}
-                          href={`/api/reports/${report.id}?format=${format.key}${selectedAccountId ? `&accountId=${selectedAccountId}` : ''}`}
+                          href={`/api/reports/${report.id}?${reportQuery(format.key)}`}
                           target="_blank"
                           className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-medium text-mist hover:bg-hover hover:text-cream transition-colors"
                         >

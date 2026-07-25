@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getCurrentProfile, isSuperAdmin } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,10 +14,16 @@ const fallbackMenu = [
 
 export async function GET(req) {
   try {
+    const auth = await getCurrentProfile();
+    if (!auth.profile) return Response.json({ error: auth.error }, { status: 401 });
+    const requestedAccountId = new URL(req.url).searchParams.get('accountId');
+    const accountId = isSuperAdmin(auth.profile) ? requestedAccountId : auth.profile.account_id;
+    if (!accountId) return Response.json([]);
     // Fetch menu items from Supabase
     const { data, error } = await supabaseAdmin
       .from('pos_menu_items')
       .select('id, name, price, category')
+      .eq('account_id', accountId)
       .eq('active', true)
       .order('category', { ascending: true })
       .order('name', { ascending: true });

@@ -1,5 +1,6 @@
 import { createPayPalOrder, makePaymentContext } from '@/lib/paypal';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getCurrentProfile, isSuperAdmin } from '@/lib/api-auth';
 
 function orderNumber() {
   const stamp = new Date().toISOString().slice(0, 10).replaceAll('-', '');
@@ -8,9 +9,12 @@ function orderNumber() {
 
 export async function POST(req) {
   try {
-    const { items, total, customerName = '', orderSource = 'food_truck' } = await req.json();
+    const auth = await getCurrentProfile();
+    if (!auth.profile) return Response.json({ error: auth.error }, { status: 401 });
+    const { items, total, customerName = '', orderSource = 'food_truck', accountId: requestedAccountId } = await req.json();
+    const accountId = isSuperAdmin(auth.profile) ? requestedAccountId : auth.profile.account_id;
 
-    if (!items || items.length === 0 || !total) {
+    if (!items || items.length === 0 || !total || !accountId) {
       return Response.json(
         { error: 'Invalid order data' },
         { status: 400 }
@@ -33,6 +37,7 @@ export async function POST(req) {
           payment_method: 'paypal_checkout',
           subtotal: totalInDollars,
           total: totalInDollars,
+          account_id: accountId,
         })
         .select()
         .single();

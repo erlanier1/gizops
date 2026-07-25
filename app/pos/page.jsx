@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { ModuleGate } from '@/components/ModuleGate';
+import { useAccountScope } from '@/lib/account-scope';
 
 export default function POSPage() {
+  const { selectedAccountId } = useAccountScope();
   const [menuItems, setMenuItems] = useState([]);
   const [cart, setCart] = useState([]);
   const [customerName, setCustomerName] = useState('');
@@ -15,7 +17,8 @@ export default function POSPage() {
   useEffect(() => {
     const loadMenu = async () => {
       try {
-        const response = await fetch('/api/pos/menu-items');
+        if (!selectedAccountId) { setMenuItems([]); return; }
+        const response = await fetch(`/api/pos/menu-items?accountId=${encodeURIComponent(selectedAccountId)}`);
         const items = await response.json();
         setMenuItems(items);
       } catch (error) {
@@ -32,7 +35,7 @@ export default function POSPage() {
       }
     };
     loadMenu();
-  }, []);
+  }, [selectedAccountId]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -95,6 +98,10 @@ export default function POSPage() {
       alert('Cart is empty');
       return;
     }
+    if (!selectedAccountId) {
+      alert('Choose a company workspace before starting checkout.');
+      return;
+    }
 
     setLoading(true);
 
@@ -106,6 +113,7 @@ export default function POSPage() {
           items: cart,
           customerName,
           orderSource: 'food_truck',
+          accountId: selectedAccountId,
           total: Math.round(orderTotal * 100), // Convert to cents
         }),
       });
