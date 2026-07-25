@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { AlertCircle, CheckCircle2, Flame, Loader2 } from 'lucide-react';
+import { withTimeout } from '@/lib/with-timeout';
 
 type PasswordSetupMode = 'reset' | 'registration' | 'change';
 
@@ -107,7 +108,10 @@ export function PasswordSetupForm({ mode }: PasswordSetupFormProps) {
       }
 
       if (code) {
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        const { error: exchangeError } = await withTimeout(
+          supabase.auth.exchangeCodeForSession(code),
+          10_000
+        );
         if (exchangeError) {
           markFailed(exchangeError.message);
           return;
@@ -117,10 +121,10 @@ export function PasswordSetupForm({ mode }: PasswordSetupFormProps) {
       }
 
       if (tokenHash && verificationType === 'recovery') {
-        const { error: verificationError } = await supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: 'recovery',
-        });
+        const { error: verificationError } = await withTimeout(
+          supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' }),
+          10_000
+        );
         if (verificationError) {
           markFailed(verificationError.message);
           return;
@@ -130,7 +134,10 @@ export function PasswordSetupForm({ mode }: PasswordSetupFormProps) {
         return;
       }
 
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await withTimeout(
+        supabase.auth.getSession(),
+        10_000
+      );
       if (sessionError) {
         markFailed(sessionError.message);
         return;
@@ -142,9 +149,11 @@ export function PasswordSetupForm({ mode }: PasswordSetupFormProps) {
 
     timeout = setTimeout(() => {
       markFailed(text.timeout);
-    }, 8000);
+    }, 12_000);
 
-    verifyLinkOrSession();
+    verifyLinkOrSession().catch(error => {
+      markFailed(error instanceof Error ? error.message : text.timeout);
+    });
 
     return () => {
       cancelled = true;
@@ -166,7 +175,13 @@ export function PasswordSetupForm({ mode }: PasswordSetupFormProps) {
 
     setLoading(true);
     setError(null);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
+    let updateError: Error | null = null;
+    try {
+      const result = await withTimeout(supabase.auth.updateUser({ password }), 15_000);
+      updateError = result.error;
+    } catch (updateFailure) {
+      updateError = updateFailure instanceof Error ? updateFailure : new Error('Password update timed out. Please request a new reset link.');
+    }
     if (updateError) {
       setLoading(false);
       setError(updateError.message);
