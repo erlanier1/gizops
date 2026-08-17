@@ -166,7 +166,13 @@ export default function InvoicesPage() {
     }
     setSaving(true);
     try {
-      const { data, error } = await supabase.from('invoices').insert({
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 15000);
+      const response = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
         account_id: selectedAccountId,
         customer_name: form.customerName.trim(),
         customer_email: form.customerEmail.trim() || null,
@@ -185,15 +191,22 @@ export default function InvoicesPage() {
         payment_url: form.paymentUrl.trim() || null,
         status: 'sent',
         notes: form.notes.trim() || null,
-      }).select('id, invoice_number, customer_name, customer_email, description, subtotal, discount_amount, sales_tax_rate, sales_tax_amount, amount, credit_card_fee, deposit_amount, amount_paid, currency, due_date, provider, provider_reference, payment_url, status, notes, created_at').single();
-      if (error) throw error;
+        }),
+      });
+      window.clearTimeout(timeout);
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Invoice could not be saved.');
+      const data = body.invoice;
 
       setInvoices(previous => [data as Invoice, ...previous]);
       setForm(blankForm);
       setShowForm(false);
       setToast({ message: 'Invoice saved with payment instructions.', type: 'success' });
     } catch (error) {
-      setToast({ message: error instanceof Error ? error.message : 'Invoice creation failed.', type: 'error' });
+      const message = error instanceof DOMException && error.name === 'AbortError'
+        ? 'The save took too long. Please check your connection and try again.'
+        : error instanceof Error ? error.message : 'Invoice creation failed.';
+      setToast({ message, type: 'error' });
     } finally {
       setSaving(false);
     }
