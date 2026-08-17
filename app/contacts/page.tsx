@@ -76,6 +76,24 @@ export default function ContactsPage() {
     fetchLeads();
   }, [fetchLeads]);
 
+  useEffect(() => {
+    if (!selectedAccountId) return;
+    const channel = supabase
+      .channel(`lead-notifications-${selectedAccountId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'contact_leads',
+        filter: `account_id=eq.${selectedAccountId}`,
+      }, payload => {
+        const lead = payload.new as ContactLead;
+        setLeads(previous => previous.some(item => item.id === lead.id) ? previous : [lead, ...previous]);
+        setToast({ message: `New lead received: ${lead.contact_name || lead.email || 'Website inquiry'}`, type: 'success' });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedAccountId, supabase]);
+
   const filteredLeads = useMemo(() => {
     if (statusFilter === 'all') return leads;
     return leads.filter(lead => lead.status === statusFilter);

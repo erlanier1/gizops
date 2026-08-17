@@ -44,6 +44,16 @@ create index if not exists contact_leads_created_at_idx on public.contact_leads 
 create index if not exists contact_leads_status_idx on public.contact_leads (status);
 create index if not exists contact_leads_email_idx on public.contact_leads (email);
 
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'contact_leads'
+  ) then
+    alter publication supabase_realtime add table public.contact_leads;
+  end if;
+end $$;
+
 alter table public.contact_leads enable row level security;
 
 drop policy if exists "Users can read contact leads for their account" on public.contact_leads;

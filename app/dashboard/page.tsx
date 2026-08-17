@@ -13,6 +13,7 @@ import { useUser } from '@/lib/auth-context';
 import {
   CalendarDays, FileText, FolderOpen, TrendingUp, AlertCircle,
   Flame, Plus, Clock, CheckCircle2, X, Package, Building2, LogOut,
+  BadgeDollarSign, ContactRound,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAccountScope } from '@/lib/account-scope';
@@ -51,6 +52,11 @@ function DashboardContent() {
     expiringPermits: [] as any[],
     todaysDeliveries: [] as any[],
     lowStockItems: [] as any[],
+    openInvoiceBalance: 0,
+    overdueInvoiceCount: 0,
+    openInvoices: [] as any[],
+    newLeadCount: 0,
+    recentLeads: [] as any[],
   });
 
   // Ensure component is mounted before accessing search params
@@ -73,16 +79,18 @@ function DashboardContent() {
     try {
       const accountId = selectedAccountId;
       if (!accountId) {
-        setData({ permitCount: 0, bookingCount: 0, docCount: 0, confirmedValue: 0, upcomingBookings: [], expiringPermits: [], todaysDeliveries: [], lowStockItems: [] });
+        setData({ permitCount: 0, bookingCount: 0, docCount: 0, confirmedValue: 0, upcomingBookings: [], expiringPermits: [], todaysDeliveries: [], lowStockItems: [], openInvoiceBalance: 0, overdueInvoiceCount: 0, openInvoices: [], newLeadCount: 0, recentLeads: [] });
         return;
       }
       const scoped = (query: any) => accountId ? query.eq('account_id', accountId) : query;
-      const [permitsRes, bookingsRes, docsRes, mealPrepRes, inventoryRes] = await Promise.all([
+      const [permitsRes, bookingsRes, docsRes, mealPrepRes, inventoryRes, invoicesRes, leadsRes] = await Promise.all([
         scoped(supabase.from('permits').select('id, name, expiration_date')),
         scoped(supabase.from('bookings').select('id, client_name, event_date, event_type, status, quote_amount')),
         scoped(supabase.from('documents').select('id')),
         scoped(supabase.from('meal_prep_clients').select('id, client_name, delivery_address, delivery_window, meals_per_week, start_date, status').eq('status', 'active')),
         scoped(supabase.from('inventory_items').select('id, item_name, quantity_on_hand, par_level, unit').gt('par_level', 0)),
+        scoped(supabase.from('invoices').select('id, invoice_number, customer_name, amount, amount_paid, due_date, event_date, status').neq('status', 'void')),
+        scoped(supabase.from('contact_leads').select('id, contact_name, email, service_interest, status, created_at').order('created_at', { ascending: false }).limit(8)),
       ]);
 
       const permits: any[] = permitsRes.data ?? [];
@@ -90,6 +98,8 @@ function DashboardContent() {
       const docs: any[] = docsRes.data ?? [];
       const mealPrepClients: any[] = mealPrepRes.data ?? [];
       const inventoryItems: any[] = inventoryRes.data ?? [];
+      const invoices: any[] = invoicesRes.data ?? [];
+      const leads: any[] = leadsRes.data ?? [];
       const now      = Date.now();
       const in60Days = now + 60 * 86_400_000;
       const in30Days = now + 30 * 86_400_000;
@@ -124,10 +134,20 @@ function DashboardContent() {
         .sort((a, b) => (Number(a.quantity_on_hand) / Number(a.par_level)) - (Number(b.quantity_on_hand) / Number(b.par_level)))
         .slice(0, 6);
 
-      setData({ permitCount: permits.length, bookingCount: bookings.length, docCount: docs.length, confirmedValue, upcomingBookings, expiringPermits, todaysDeliveries, lowStockItems });
+      const todayIso = new Date().toISOString().slice(0, 10);
+      const allOpenInvoices = invoices.filter(invoice => !['paid', 'void'].includes(invoice.status) && Number(invoice.amount) > Number(invoice.amount_paid || 0));
+      const openInvoices = allOpenInvoices
+        .sort((a, b) => String(a.due_date || '9999-12-31').localeCompare(String(b.due_date || '9999-12-31')))
+        .slice(0, 6);
+      const openInvoiceBalance = allOpenInvoices.reduce((sum, invoice) => sum + Number(invoice.amount) - Number(invoice.amount_paid || 0), 0);
+      const overdueInvoiceCount = invoices.filter(invoice => !['paid', 'void'].includes(invoice.status) && invoice.due_date && invoice.due_date < todayIso && Number(invoice.amount) > Number(invoice.amount_paid || 0)).length;
+      const recentLeads = leads.slice(0, 6);
+      const newLeadCount = leads.filter(lead => lead.status === 'new').length;
+
+      setData({ permitCount: permits.length, bookingCount: bookings.length, docCount: docs.length, confirmedValue, upcomingBookings, expiringPermits, todaysDeliveries, lowStockItems, openInvoiceBalance, overdueInvoiceCount, openInvoices, newLeadCount, recentLeads });
     } catch (error) {
       console.error('Dashboard data failed to load:', error);
-      setData({ permitCount: 0, bookingCount: 0, docCount: 0, confirmedValue: 0, upcomingBookings: [], expiringPermits: [], todaysDeliveries: [], lowStockItems: [] });
+      setData({ permitCount: 0, bookingCount: 0, docCount: 0, confirmedValue: 0, upcomingBookings: [], expiringPermits: [], todaysDeliveries: [], lowStockItems: [], openInvoiceBalance: 0, overdueInvoiceCount: 0, openInvoices: [], newLeadCount: 0, recentLeads: [] });
     } finally {
       setLoading(false);
     }
@@ -279,13 +299,34 @@ function DashboardContent() {
         /* ── Full view for manager / owner / super admin ── */
         <>
           {/* Stats row */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-8">
             <StatCard
               title="Bookings"
               value={loading ? '—' : data.bookingCount}
               subtitle={data.upcomingBookings.length > 0 ? `${data.upcomingBookings.length} confirmed upcoming` : 'No bookings yet'}
               icon={CalendarDays}
               trend="neutral"
+            />
+            <StatCard
+              title="Open Invoice Balance"
+              value={loading ? '—' : `$${data.openInvoiceBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              subtitle={`${data.openInvoices.length} open invoices shown below`}
+              icon={BadgeDollarSign}
+              trend={data.openInvoiceBalance > 0 ? 'up' : 'neutral'}
+            />
+            <StatCard
+              title="Overdue Invoices"
+              value={loading ? '—' : data.overdueInvoiceCount}
+              subtitle={data.overdueInvoiceCount > 0 ? 'Requires follow-up' : 'No overdue balances'}
+              icon={AlertCircle}
+              trend={data.overdueInvoiceCount > 0 ? 'down' : 'neutral'}
+            />
+            <StatCard
+              title="New Leads"
+              value={loading ? '—' : data.newLeadCount}
+              subtitle="Recent leads awaiting follow-up"
+              icon={ContactRound}
+              trend={data.newLeadCount > 0 ? 'up' : 'neutral'}
             />
             <StatCard
               title="Active Permits"
@@ -325,6 +366,17 @@ function DashboardContent() {
               </div>
             </div>
           )}
+
+          <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="rounded-xl border border-line bg-smoke p-5">
+              <div className="mb-4 flex items-center justify-between"><h2 className="flex items-center gap-2 text-sm font-semibold text-cream"><BadgeDollarSign className="h-4 w-4 text-ember" />Open Invoices</h2><Link href="/invoices" className="text-xs text-mist hover:text-cream">View all →</Link></div>
+              {loading ? <Spinner /> : data.openInvoices.length === 0 ? <div className="flex items-center gap-3 rounded-lg border border-green-800/40 bg-green-900/20 px-4 py-3"><CheckCircle2 className="h-4 w-4 text-green-400" /><p className="text-sm text-green-400">No open invoice balances.</p></div> : <div className="space-y-2">{data.openInvoices.map((invoice: any) => { const balance = Number(invoice.amount) - Number(invoice.amount_paid || 0); const overdue = invoice.due_date && invoice.due_date < new Date().toISOString().slice(0, 10); return <Link href="/invoices" key={invoice.id} className="flex items-center justify-between rounded-lg border border-line bg-coal px-4 py-3 hover:bg-hover"><div><p className="text-sm font-medium text-cream">INV-{String(invoice.invoice_number).padStart(6, '0')} · {invoice.customer_name}</p><p className={`mt-0.5 text-xs ${overdue ? 'text-red-400' : 'text-mist'}`}>{invoice.due_date ? `${overdue ? 'Overdue' : 'Due'} ${fmtDate(invoice.due_date)}` : 'No due date'}{invoice.event_date ? ` · Event ${fmtDate(invoice.event_date)}` : ''}</p></div><p className="text-sm font-bold text-amber-400">${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p></Link>; })}</div>}
+            </div>
+            <div className="rounded-xl border border-line bg-smoke p-5">
+              <div className="mb-4 flex items-center justify-between"><h2 className="flex items-center gap-2 text-sm font-semibold text-cream"><ContactRound className="h-4 w-4 text-ember" />Recent Leads</h2><Link href="/contacts" className="text-xs text-mist hover:text-cream">View all →</Link></div>
+              {loading ? <Spinner /> : data.recentLeads.length === 0 ? <div className="py-8 text-center text-sm text-mist/60">New website leads will appear here.</div> : <div className="space-y-2">{data.recentLeads.map((lead: any) => <Link href="/contacts" key={lead.id} className="flex items-center justify-between rounded-lg border border-line bg-coal px-4 py-3 hover:bg-hover"><div><p className="text-sm font-medium text-cream">{lead.contact_name}</p><p className="mt-0.5 text-xs text-mist">{lead.service_interest || lead.email} · {new Date(lead.created_at).toLocaleDateString()}</p></div><span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${lead.status === 'new' ? 'border-amber-800 bg-amber-900/30 text-amber-300' : 'border-line text-mist'}`}>{lead.status}</span></Link>)}</div>}
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Upcoming Bookings */}

@@ -127,7 +127,7 @@ function normalizeLeadPayload(body, req) {
 async function notifyBusiness({ business, lead }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.CONTACT_FROM_EMAIL;
-  const to = business.contact_email;
+  const to = business.contact_email || process.env.ALERT_EMAIL;
 
   if (!apiKey || !from || !to) {
     return { sent: false, reason: 'Email notification is not configured.' };
@@ -238,10 +238,11 @@ async function saveLead(body, req) {
     return { error: leadError.message, status: 500 };
   }
 
-  const business = account.business_profiles?.[0] ?? {};
+  const relatedBusiness = account.business_profiles;
+  const business = (Array.isArray(relatedBusiness) ? relatedBusiness[0] : relatedBusiness) ?? {};
   let emailNotification = { sent: false, reason: 'No business contact email found.' };
 
-  if (business.contact_email) {
+  if (business.contact_email || process.env.ALERT_EMAIL) {
     try {
       emailNotification = await notifyBusiness({ business, lead });
     } catch (error) {
