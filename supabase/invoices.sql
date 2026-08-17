@@ -6,13 +6,14 @@ create table if not exists public.invoices (
   customer_email text,
   description text not null,
   amount numeric(12, 2) not null check (amount > 0),
+  credit_card_fee numeric(12, 2) not null default 0 check (credit_card_fee >= 0),
   deposit_amount numeric(12, 2) not null default 0 check (deposit_amount >= 0 and deposit_amount <= amount),
   amount_paid numeric(12, 2) not null default 0 check (amount_paid >= 0 and amount_paid <= amount),
   currency text not null default 'USD',
   due_date date,
-  provider text not null check (provider in ('paypal', 'stripe')),
+  provider text not null check (provider in ('credit_card', 'cash_app', 'zelle', 'corporate_check', 'paypal', 'stripe')),
   provider_reference text,
-  payment_url text not null,
+  payment_url text,
   status text not null default 'sent' check (status in ('draft', 'sent', 'partially_paid', 'paid', 'overdue', 'void')),
   notes text,
   created_by uuid references auth.users(id) on delete set null default auth.uid(),
@@ -30,6 +31,16 @@ alter table public.invoices
 
 alter table public.invoices
   add column if not exists deposit_amount numeric(12, 2) not null default 0;
+
+alter table public.invoices
+  add column if not exists credit_card_fee numeric(12, 2) not null default 0;
+
+alter table public.invoices alter column payment_url drop not null;
+
+alter table public.invoices drop constraint if exists invoices_provider_check;
+alter table public.invoices
+  add constraint invoices_provider_check
+  check (provider in ('credit_card', 'cash_app', 'zelle', 'corporate_check', 'paypal', 'stripe'));
 
 alter table public.invoices drop constraint if exists invoices_deposit_amount_check;
 alter table public.invoices
