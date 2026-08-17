@@ -5,6 +5,10 @@ create table if not exists public.invoices (
   customer_name text not null,
   customer_email text,
   description text not null,
+  subtotal numeric(12, 2) not null default 0 check (subtotal >= 0),
+  discount_amount numeric(12, 2) not null default 0 check (discount_amount >= 0),
+  sales_tax_rate numeric(7, 4) not null default 0 check (sales_tax_rate >= 0),
+  sales_tax_amount numeric(12, 2) not null default 0 check (sales_tax_amount >= 0),
   amount numeric(12, 2) not null check (amount > 0),
   credit_card_fee numeric(12, 2) not null default 0 check (credit_card_fee >= 0),
   deposit_amount numeric(12, 2) not null default 0 check (deposit_amount >= 0 and deposit_amount <= amount),
@@ -34,6 +38,14 @@ alter table public.invoices
 
 alter table public.invoices
   add column if not exists credit_card_fee numeric(12, 2) not null default 0;
+
+alter table public.invoices
+  add column if not exists subtotal numeric(12, 2) not null default 0,
+  add column if not exists discount_amount numeric(12, 2) not null default 0,
+  add column if not exists sales_tax_rate numeric(7, 4) not null default 0,
+  add column if not exists sales_tax_amount numeric(12, 2) not null default 0;
+
+update public.invoices set subtotal = amount where subtotal = 0;
 
 alter table public.invoices alter column payment_url drop not null;
 
