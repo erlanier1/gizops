@@ -119,7 +119,7 @@ export default function InvoicesPage() {
     paid: invoices.filter(invoice => invoice.status !== 'void').reduce((sum, invoice) => sum + Number(invoice.amount_paid || 0), 0),
   }), [invoices]);
 
-  const creditCardFeePreview = form.provider === 'credit_card' ? Number((Number(form.amount || 0) * 0.025).toFixed(2)) : 0;
+  const paymentFeePreview = ['credit_card', 'cash_app'].includes(form.provider) ? Number((Number(form.amount || 0) * 0.025).toFixed(2)) : 0;
 
   const createInvoice = async (event: FormEvent) => {
     event.preventDefault();
@@ -128,8 +128,8 @@ export default function InvoicesPage() {
       return;
     }
     const amount = Number(form.amount);
-    const creditCardFee = form.provider === 'credit_card' ? Number((amount * 0.025).toFixed(2)) : 0;
-    const invoiceTotal = amount + creditCardFee;
+    const paymentFee = ['credit_card', 'cash_app'].includes(form.provider) ? Number((amount * 0.025).toFixed(2)) : 0;
+    const invoiceTotal = amount + paymentFee;
     const depositAmount = Number(form.depositAmount || 0);
     if (!Number.isFinite(amount) || amount <= 0) {
       setToast({ message: 'Enter a valid invoice amount.', type: 'error' });
@@ -147,7 +147,7 @@ export default function InvoicesPage() {
         customer_email: form.customerEmail.trim() || null,
         description: form.description.trim(),
         amount: invoiceTotal,
-        credit_card_fee: creditCardFee,
+        credit_card_fee: paymentFee,
         deposit_amount: depositAmount,
         amount_paid: 0,
         due_date: form.dueDate || null,
@@ -229,10 +229,10 @@ export default function InvoicesPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <label className="text-xs font-medium text-mist">Customer name<input required className={`${inputClass} mt-1.5`} value={form.customerName} onChange={event => setForm({ ...form, customerName: event.target.value })} /></label>
             <label className="text-xs font-medium text-mist">Customer email<input type="email" className={`${inputClass} mt-1.5`} value={form.customerEmail} onChange={event => setForm({ ...form, customerEmail: event.target.value })} /></label>
-            <label className="text-xs font-medium text-mist">Event subtotal (USD)<span className="relative mt-1.5 block"><span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-mist">$</span><input required min="0.01" step="0.01" type="number" inputMode="decimal" className={`${inputClass} pl-7`} value={form.amount} onChange={event => setForm({ ...form, amount: event.target.value })} placeholder="0.00" /></span>{form.provider === 'credit_card' && <span className="mt-1.5 block text-[11px] text-amber-300">2.5% card fee: {money(creditCardFeePreview)} · Invoice total: {money(Number(form.amount || 0) + creditCardFeePreview)}</span>}</label>
+            <label className="text-xs font-medium text-mist">Event subtotal (USD)<span className="relative mt-1.5 block"><span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-mist">$</span><input required min="0.01" step="0.01" type="number" inputMode="decimal" className={`${inputClass} pl-7`} value={form.amount} onChange={event => setForm({ ...form, amount: event.target.value })} placeholder="0.00" /></span>{['credit_card', 'cash_app'].includes(form.provider) && <span className="mt-1.5 block text-[11px] text-amber-300">2.5% payment fee: {money(paymentFeePreview)} · Invoice total: {money(Number(form.amount || 0) + paymentFeePreview)}</span>}</label>
             <label className="text-xs font-medium text-mist">Deposit required (USD)<span className="relative mt-1.5 block"><span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-mist">$</span><input min="0" step="0.01" type="number" inputMode="decimal" className={`${inputClass} pl-7`} value={form.depositAmount} onChange={event => setForm({ ...form, depositAmount: event.target.value })} placeholder="0.00" /></span></label>
             <label className="text-xs font-medium text-mist">Due date<input type="date" className={`${inputClass} mt-1.5`} value={form.dueDate} onChange={event => setForm({ ...form, dueDate: event.target.value })} /></label>
-            <label className="text-xs font-medium text-mist">Payment method<select className={`${inputClass} mt-1.5`} value={form.provider} onChange={event => setForm({ ...form, provider: event.target.value as Provider })}><option value="credit_card">Credit card — add 2.5% fee</option><option value="cash_app">Cash App</option><option value="zelle">Zelle</option><option value="corporate_check">Corporate check only</option></select></label>
+            <label className="text-xs font-medium text-mist">Payment method<select className={`${inputClass} mt-1.5`} value={form.provider} onChange={event => setForm({ ...form, provider: event.target.value as Provider })}><option value="credit_card">Credit card — add 2.5% fee</option><option value="cash_app">Cash App — add 2.5% fee</option><option value="zelle">Zelle</option><option value="corporate_check">Corporate check only</option></select></label>
             <label className="text-xs font-medium text-mist">Payment link (optional)<input type="url" placeholder="Paste the payment link" className={`${inputClass} mt-1.5`} value={form.paymentUrl} onChange={event => setForm({ ...form, paymentUrl: event.target.value })} /></label>
             <label className="text-xs font-medium text-mist md:col-span-2">Event menu and services<textarea required rows={10} className={`${inputClass} mt-1.5 min-h-56 resize-y leading-6`} value={form.description} onChange={event => setForm({ ...form, description: event.target.value })} placeholder="Add the complete event menu, quantities, service details, rentals, staffing, delivery, and other event notes." /></label>
             <label className="text-xs font-medium text-mist md:col-span-2">Internal notes<textarea rows={3} className={`${inputClass} mt-1.5`} value={form.notes} onChange={event => setForm({ ...form, notes: event.target.value })} /></label>
