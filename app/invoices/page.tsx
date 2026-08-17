@@ -12,10 +12,12 @@ type InvoiceStatus = 'draft' | 'sent' | 'partially_paid' | 'paid' | 'overdue' | 
 
 type Invoice = {
   id: string;
+  invoice_number: number;
   customer_name: string;
   customer_email: string | null;
   description: string;
   amount: number;
+  deposit_amount: number;
   amount_paid: number;
   currency: string;
   due_date: string | null;
@@ -32,6 +34,7 @@ const blankForm = {
   customerEmail: '',
   description: '',
   amount: '',
+  depositAmount: '',
   dueDate: '',
   provider: 'paypal' as Provider,
   paymentUrl: '',
@@ -43,6 +46,10 @@ const statuses: InvoiceStatus[] = ['draft', 'sent', 'partially_paid', 'paid', 'o
 
 function money(amount: number, currency = 'USD') {
   return amount.toLocaleString('en-US', { style: 'currency', currency });
+}
+
+function invoiceLabel(invoiceNumber: number) {
+  return `INV-${String(invoiceNumber).padStart(6, '0')}`;
 }
 
 function statusClass(status: InvoiceStatus) {
@@ -76,7 +83,7 @@ export default function InvoicesPage() {
     }
     const { data, error } = await supabase
       .from('invoices')
-      .select('id, customer_name, customer_email, description, amount, amount_paid, currency, due_date, provider, provider_reference, payment_url, status, notes, created_at')
+      .select('id, invoice_number, customer_name, customer_email, description, amount, deposit_amount, amount_paid, currency, due_date, provider, provider_reference, payment_url, status, notes, created_at')
       .eq('account_id', selectedAccountId)
       .order('created_at', { ascending: false });
     if (error) {
@@ -107,8 +114,13 @@ export default function InvoicesPage() {
       return;
     }
     const amount = Number(form.amount);
+    const depositAmount = Number(form.depositAmount || 0);
     if (!Number.isFinite(amount) || amount <= 0) {
       setToast({ message: 'Enter a valid invoice amount.', type: 'error' });
+      return;
+    }
+    if (!Number.isFinite(depositAmount) || depositAmount < 0 || depositAmount > amount) {
+      setToast({ message: 'Deposit must be between $0.00 and the invoice total.', type: 'error' });
       return;
     }
     if (form.provider === 'stripe' && !form.paymentUrl.trim()) {
@@ -133,6 +145,7 @@ export default function InvoicesPage() {
             clientName: form.customerName,
             email: form.customerEmail,
             amount,
+            depositAmount,
             description: form.description,
             daysUntilDue,
           }),
@@ -150,6 +163,7 @@ export default function InvoicesPage() {
         customer_email: form.customerEmail.trim() || null,
         description: form.description.trim(),
         amount,
+        deposit_amount: depositAmount,
         amount_paid: 0,
         due_date: form.dueDate || null,
         provider: form.provider,
@@ -157,7 +171,7 @@ export default function InvoicesPage() {
         payment_url: paymentUrl,
         status: 'sent',
         notes: form.notes.trim() || null,
-      }).select('id, customer_name, customer_email, description, amount, amount_paid, currency, due_date, provider, provider_reference, payment_url, status, notes, created_at').single();
+      }).select('id, invoice_number, customer_name, customer_email, description, amount, deposit_amount, amount_paid, currency, due_date, provider, provider_reference, payment_url, status, notes, created_at').single();
       if (error) throw error;
 
       setInvoices(previous => [data as Invoice, ...previous]);
@@ -230,11 +244,12 @@ export default function InvoicesPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <label className="text-xs font-medium text-mist">Customer name<input required className={`${inputClass} mt-1.5`} value={form.customerName} onChange={event => setForm({ ...form, customerName: event.target.value })} /></label>
             <label className="text-xs font-medium text-mist">Customer email<input type="email" className={`${inputClass} mt-1.5`} value={form.customerEmail} onChange={event => setForm({ ...form, customerEmail: event.target.value })} /></label>
-            <label className="text-xs font-medium text-mist">Amount<input required min="0.01" step="0.01" type="number" className={`${inputClass} mt-1.5`} value={form.amount} onChange={event => setForm({ ...form, amount: event.target.value })} /></label>
+            <label className="text-xs font-medium text-mist">Total amount (USD)<span className="relative mt-1.5 block"><span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-mist">$</span><input required min="0.01" step="0.01" type="number" inputMode="decimal" className={`${inputClass} pl-7`} value={form.amount} onChange={event => setForm({ ...form, amount: event.target.value })} placeholder="0.00" /></span></label>
+            <label className="text-xs font-medium text-mist">Deposit required (USD)<span className="relative mt-1.5 block"><span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-mist">$</span><input min="0" step="0.01" type="number" inputMode="decimal" className={`${inputClass} pl-7`} value={form.depositAmount} onChange={event => setForm({ ...form, depositAmount: event.target.value })} placeholder="0.00" /></span></label>
             <label className="text-xs font-medium text-mist">Due date<input type="date" className={`${inputClass} mt-1.5`} value={form.dueDate} onChange={event => setForm({ ...form, dueDate: event.target.value })} /></label>
             <label className="text-xs font-medium text-mist">Payment provider<select className={`${inputClass} mt-1.5`} value={form.provider} onChange={event => setForm({ ...form, provider: event.target.value as Provider, paymentUrl: '' })}><option value="paypal">PayPal — create and send invoice</option><option value="stripe">Stripe — attach payment link</option></select></label>
             {form.provider === 'stripe' && <label className="text-xs font-medium text-mist">Stripe payment link<input required type="url" placeholder="https://buy.stripe.com/..." className={`${inputClass} mt-1.5`} value={form.paymentUrl} onChange={event => setForm({ ...form, paymentUrl: event.target.value })} /></label>}
-            <label className="text-xs font-medium text-mist md:col-span-2">Description<input required className={`${inputClass} mt-1.5`} value={form.description} onChange={event => setForm({ ...form, description: event.target.value })} /></label>
+            <label className="text-xs font-medium text-mist md:col-span-2">Event menu and services<textarea required rows={10} className={`${inputClass} mt-1.5 min-h-56 resize-y leading-6`} value={form.description} onChange={event => setForm({ ...form, description: event.target.value })} placeholder="Add the complete event menu, quantities, service details, rentals, staffing, delivery, and other event notes." /></label>
             <label className="text-xs font-medium text-mist md:col-span-2">Internal notes<textarea rows={3} className={`${inputClass} mt-1.5`} value={form.notes} onChange={event => setForm({ ...form, notes: event.target.value })} /></label>
           </div>
           <div className="mt-4 flex justify-end"><button disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-ember px-4 py-2 text-sm font-medium text-white disabled:opacity-60">{saving && <Loader2 className="h-4 w-4 animate-spin" />}{form.provider === 'paypal' ? 'Create & Send PayPal Invoice' : 'Save Stripe Payment Link'}</button></div>
@@ -255,8 +270,8 @@ export default function InvoicesPage() {
         {loading ? <div className="flex min-h-56 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-ember" /></div> : visibleInvoices.length === 0 ? <div className="px-5 py-12 text-sm text-mist/70">No invoices match this view.</div> : <div className="divide-y divide-line">{visibleInvoices.map(invoice => (
           <article key={invoice.id} className="p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-cream">{invoice.customer_name}</h3><span className="rounded-full border border-line bg-coal px-2 py-0.5 text-[10px] font-semibold uppercase text-mist">{invoice.provider}</span><span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${statusClass(invoice.status)}`}>{invoice.status}</span></div><p className="mt-1 text-xs text-mist/60">{invoice.customer_email || 'No email'} · {new Date(invoice.created_at).toLocaleDateString()}</p><p className="mt-3 text-sm text-mist">{invoice.description}</p>{invoice.notes && <p className="mt-2 text-xs text-mist/60">{invoice.notes}</p>}</div>
-              <div className="min-w-64"><p className="text-xl font-bold text-cream">{money(Number(invoice.amount), invoice.currency)}</p><p className="text-xs text-green-400">Paid: {money(Number(invoice.amount_paid || 0), invoice.currency)}</p><p className="text-xs font-semibold text-amber-400">Balance due: {money(Math.max(0, Number(invoice.amount) - Number(invoice.amount_paid || 0)), invoice.currency)}</p><p className="mb-3 mt-1 text-xs text-mist/60">{invoice.due_date ? `Due ${new Date(`${invoice.due_date}T00:00:00`).toLocaleDateString()}` : 'No due date'}</p><div className="mb-2 flex gap-2"><input aria-label={`Payment amount for ${invoice.customer_name}`} min="0.01" max={Math.max(0, Number(invoice.amount) - Number(invoice.amount_paid || 0))} step="0.01" type="number" placeholder="Payment amount" className={inputClass} value={paymentAmounts[invoice.id] ?? ''} onChange={event => setPaymentAmounts(previous => ({ ...previous, [invoice.id]: event.target.value }))} disabled={invoice.status === 'paid' || invoice.status === 'void'} /><button type="button" onClick={() => recordPayment(invoice)} disabled={recordingPayment === invoice.id || invoice.status === 'paid' || invoice.status === 'void'} className="whitespace-nowrap rounded-lg bg-ember px-3 py-2 text-xs font-medium text-white disabled:opacity-50">{recordingPayment === invoice.id ? 'Saving…' : 'Record Payment'}</button></div><div className="flex gap-2"><button type="button" onClick={() => copyLink(invoice.payment_url)} className="rounded-lg border border-line p-2 text-mist hover:bg-hover" title="Copy payment link"><Copy className="h-4 w-4" /></button><a href={invoice.payment_url} target="_blank" rel="noreferrer" className="rounded-lg border border-line p-2 text-mist hover:bg-hover" title="Open payment link"><ExternalLink className="h-4 w-4" /></a><select aria-label={`Status for ${invoice.customer_name}`} className={inputClass} value={invoice.status} onChange={event => updateStatus(invoice, event.target.value as InvoiceStatus)}>{statuses.map(status => <option key={status} value={status}>{status.replace('_', ' ')}</option>)}</select></div></div>
+              <div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-cream">{invoice.customer_name}</h3><span className="rounded-full border border-ember/40 bg-ember/10 px-2 py-0.5 text-[10px] font-semibold text-ember">{invoiceLabel(invoice.invoice_number)}</span><span className="rounded-full border border-line bg-coal px-2 py-0.5 text-[10px] font-semibold uppercase text-mist">{invoice.provider}</span><span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${statusClass(invoice.status)}`}>{invoice.status}</span></div><p className="mt-1 text-xs text-mist/60">{invoice.customer_email || 'No email'} · {new Date(invoice.created_at).toLocaleDateString()}</p><p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-mist">{invoice.description}</p>{invoice.notes && <p className="mt-2 text-xs text-mist/60">{invoice.notes}</p>}</div>
+              <div className="min-w-64"><p className="text-xl font-bold text-cream">{money(Number(invoice.amount), invoice.currency)}</p>{Number(invoice.deposit_amount || 0) > 0 && <p className="text-xs text-cyan-300">Deposit required: {money(Number(invoice.deposit_amount), invoice.currency)}</p>}<p className="text-xs text-green-400">Paid: {money(Number(invoice.amount_paid || 0), invoice.currency)}</p><p className="text-xs font-semibold text-amber-400">Balance due: {money(Math.max(0, Number(invoice.amount) - Number(invoice.amount_paid || 0)), invoice.currency)}</p><p className="mb-3 mt-1 text-xs text-mist/60">{invoice.due_date ? `Due ${new Date(`${invoice.due_date}T00:00:00`).toLocaleDateString()}` : 'No due date'}</p><div className="mb-2 flex gap-2"><input aria-label={`Payment amount for ${invoice.customer_name}`} min="0.01" max={Math.max(0, Number(invoice.amount) - Number(invoice.amount_paid || 0))} step="0.01" type="number" placeholder="Payment amount" className={inputClass} value={paymentAmounts[invoice.id] ?? ''} onChange={event => setPaymentAmounts(previous => ({ ...previous, [invoice.id]: event.target.value }))} disabled={invoice.status === 'paid' || invoice.status === 'void'} /><button type="button" onClick={() => recordPayment(invoice)} disabled={recordingPayment === invoice.id || invoice.status === 'paid' || invoice.status === 'void'} className="whitespace-nowrap rounded-lg bg-ember px-3 py-2 text-xs font-medium text-white disabled:opacity-50">{recordingPayment === invoice.id ? 'Saving…' : 'Record Payment'}</button></div><div className="flex gap-2"><button type="button" onClick={() => copyLink(invoice.payment_url)} className="rounded-lg border border-line p-2 text-mist hover:bg-hover" title="Copy payment link"><Copy className="h-4 w-4" /></button><a href={invoice.payment_url} target="_blank" rel="noreferrer" className="rounded-lg border border-line p-2 text-mist hover:bg-hover" title="Open payment link"><ExternalLink className="h-4 w-4" /></a><select aria-label={`Status for ${invoice.customer_name}`} className={inputClass} value={invoice.status} onChange={event => updateStatus(invoice, event.target.value as InvoiceStatus)}>{statuses.map(status => <option key={status} value={status}>{status.replace('_', ' ')}</option>)}</select></div></div>
             </div>
           </article>
         ))}</div>}

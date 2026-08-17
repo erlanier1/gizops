@@ -19,6 +19,7 @@ export async function POST(req) {
       clientName,
       email,
       amount,
+      depositAmount = 0,
       description = 'Corporate meal prep invoice',
       daysUntilDue = 14,
     } = await req.json();
@@ -63,8 +64,12 @@ export async function POST(req) {
     }
 
     const invoiceAmount = Number(amount);
+    const invoiceDeposit = Number(depositAmount || 0);
     if (!Number.isFinite(invoiceAmount) || invoiceAmount < 1) {
       return Response.json({ error: 'amount must be at least 1.00.' }, { status: 400 });
+    }
+    if (!Number.isFinite(invoiceDeposit) || invoiceDeposit < 0 || invoiceDeposit > invoiceAmount) {
+      return Response.json({ error: 'Deposit must be between $0.00 and the invoice total.' }, { status: 400 });
     }
 
     const dueDate = new Date();
@@ -88,7 +93,12 @@ export async function POST(req) {
         }],
         configuration: {
           allow_tip: false,
-          partial_payment: { allow_partial_payment: true },
+          partial_payment: {
+            allow_partial_payment: true,
+            ...(invoiceDeposit > 0 ? {
+              minimum_amount_due: { currency_code: 'USD', value: invoiceDeposit.toFixed(2) },
+            } : {}),
+          },
         },
       }),
     });
@@ -101,6 +111,7 @@ export async function POST(req) {
     const sentInvoice = await paypalRequest(`/v2/invoicing/invoices/${encodeURIComponent(invoice.id)}`);
     return Response.json({
       invoiceId: invoice.id,
+      invoiceNumber: sentInvoice.detail?.invoice_number || null,
       hostedInvoiceUrl: sentInvoice.detail_metadata?.recipient_view_url || null,
       invoicePdf: null,
     });
