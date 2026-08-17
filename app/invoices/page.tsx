@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { BadgeDollarSign, Copy, ExternalLink, Loader2, Plus, RefreshCw, X } from 'lucide-react';
+import { BadgeDollarSign, Copy, Download, ExternalLink, Loader2, Mail, Plus, RefreshCw, X } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { Toast } from '@/components/ui/toast';
 import { useAccountScope } from '@/lib/account-scope';
@@ -15,6 +15,10 @@ type Invoice = {
   invoice_number: number;
   customer_name: string;
   customer_email: string | null;
+  event_date: string | null;
+  guest_count: number | null;
+  event_location: string | null;
+  service_type: string | null;
   description: string;
   subtotal: number;
   discount_amount: number;
@@ -31,12 +35,17 @@ type Invoice = {
   payment_url: string | null;
   status: InvoiceStatus;
   notes: string | null;
+  emailed_at: string | null;
   created_at: string;
 };
 
 const blankForm = {
   customerName: '',
   customerEmail: '',
+  eventDate: '',
+  guestCount: '',
+  eventLocation: '',
+  serviceType: '',
   description: '',
   amount: '',
   discountAmount: '',
@@ -90,6 +99,7 @@ export default function InvoicesPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | InvoiceStatus>('all');
   const [paymentAmounts, setPaymentAmounts] = useState<Record<string, string>>({});
   const [recordingPayment, setRecordingPayment] = useState<string | null>(null);
+  const [sendingInvoice, setSendingInvoice] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const fetchInvoices = useCallback(async () => {
@@ -101,7 +111,7 @@ export default function InvoicesPage() {
     }
     const { data, error } = await supabase
       .from('invoices')
-      .select('id, invoice_number, customer_name, customer_email, description, subtotal, discount_amount, sales_tax_rate, sales_tax_amount, amount, credit_card_fee, deposit_amount, amount_paid, currency, due_date, provider, provider_reference, payment_url, status, notes, created_at')
+      .select('id, invoice_number, customer_name, customer_email, event_date, guest_count, event_location, service_type, description, subtotal, discount_amount, sales_tax_rate, sales_tax_amount, amount, credit_card_fee, deposit_amount, amount_paid, currency, due_date, provider, provider_reference, payment_url, status, notes, emailed_at, created_at')
       .eq('account_id', selectedAccountId)
       .order('created_at', { ascending: false });
     if (error) {
@@ -176,6 +186,10 @@ export default function InvoicesPage() {
         account_id: selectedAccountId,
         customer_name: form.customerName.trim(),
         customer_email: form.customerEmail.trim() || null,
+        event_date: form.eventDate || null,
+        guest_count: form.guestCount ? Number(form.guestCount) : null,
+        event_location: form.eventLocation.trim() || null,
+        service_type: form.serviceType.trim() || null,
         description: form.description.trim(),
         subtotal: amount,
         discount_amount: discountAmount,
@@ -226,6 +240,22 @@ export default function InvoicesPage() {
     setToast({ message: 'Payment link copied.', type: 'success' });
   };
 
+  const emailInvoice = async (invoice: Invoice) => {
+    setSendingInvoice(invoice.id);
+    try {
+      const response = await fetch(`/api/invoices/${invoice.id}/email`, { method: 'POST' });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Invoice email could not be sent.');
+      const emailedAt = new Date().toISOString();
+      setInvoices(previous => previous.map(item => item.id === invoice.id ? { ...item, emailed_at: emailedAt } : item));
+      setToast({ message: `Invoice emailed to ${invoice.customer_email}.`, type: 'success' });
+    } catch (error) {
+      setToast({ message: error instanceof Error ? error.message : 'Invoice email could not be sent.', type: 'error' });
+    } finally {
+      setSendingInvoice(null);
+    }
+  };
+
   const recordPayment = async (invoice: Invoice) => {
     const payment = Number(paymentAmounts[invoice.id]);
     const currentPaid = Number(invoice.amount_paid || 0);
@@ -271,6 +301,10 @@ export default function InvoicesPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <label className="text-xs font-medium text-mist">Customer name<input required className={`${inputClass} mt-1.5`} value={form.customerName} onChange={event => setForm({ ...form, customerName: event.target.value })} /></label>
             <label className="text-xs font-medium text-mist">Customer email<input type="email" className={`${inputClass} mt-1.5`} value={form.customerEmail} onChange={event => setForm({ ...form, customerEmail: event.target.value })} /></label>
+            <label className="text-xs font-medium text-mist">Event date<input type="date" className={`${inputClass} mt-1.5`} value={form.eventDate} onChange={event => setForm({ ...form, eventDate: event.target.value })} /></label>
+            <label className="text-xs font-medium text-mist">Guest count<input min="1" step="1" type="number" className={`${inputClass} mt-1.5`} value={form.guestCount} onChange={event => setForm({ ...form, guestCount: event.target.value })} placeholder="Number of guests" /></label>
+            <label className="text-xs font-medium text-mist">Event location<input className={`${inputClass} mt-1.5`} value={form.eventLocation} onChange={event => setForm({ ...form, eventLocation: event.target.value })} placeholder="Venue or full address" /></label>
+            <label className="text-xs font-medium text-mist">Service type<input className={`${inputClass} mt-1.5`} value={form.serviceType} onChange={event => setForm({ ...form, serviceType: event.target.value })} placeholder="Catering, food truck, delivery..." /></label>
             <label className="text-xs font-medium text-mist">Event subtotal (USD)<span className="relative mt-1.5 block"><span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-mist">$</span><input required min="0.01" step="0.01" type="number" inputMode="decimal" className={`${inputClass} pl-7`} value={form.amount} onChange={event => setForm({ ...form, amount: event.target.value })} placeholder="0.00" /></span></label>
             <label className="text-xs font-medium text-mist">Discount (USD)<span className="relative mt-1.5 block"><span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-mist">$</span><input min="0" step="0.01" type="number" inputMode="decimal" className={`${inputClass} pl-7`} value={form.discountAmount} onChange={event => setForm({ ...form, discountAmount: event.target.value })} placeholder="0.00" /></span></label>
             <label className="text-xs font-medium text-mist">Sales tax rate<span className="relative mt-1.5 block"><input min="0" max="100" step="0.01" type="number" inputMode="decimal" className={`${inputClass} pr-8`} value={form.salesTaxRate} onChange={event => setForm({ ...form, salesTaxRate: event.target.value })} placeholder="0.00" /><span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-mist">%</span></span></label>
@@ -302,6 +336,10 @@ export default function InvoicesPage() {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-cream">{invoice.customer_name}</h3><span className="rounded-full border border-ember/40 bg-ember/10 px-2 py-0.5 text-[10px] font-semibold text-ember">{invoiceLabel(invoice.invoice_number)}</span><span className="rounded-full border border-line bg-coal px-2 py-0.5 text-[10px] font-semibold text-mist">{paymentMethodLabel(invoice.provider)}</span><span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${statusClass(invoice.status)}`}>{invoice.status}</span></div><p className="mt-1 text-xs text-mist/60">{invoice.customer_email || 'No email'} · {new Date(invoice.created_at).toLocaleDateString()}</p><p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-mist">{invoice.description}</p>{invoice.notes && <p className="mt-2 text-xs text-mist/60">{invoice.notes}</p>}</div>
               <div className="min-w-64"><p className="text-xl font-bold text-cream">{money(Number(invoice.amount), invoice.currency)}</p>{Number(invoice.credit_card_fee || 0) > 0 && <p className="text-xs text-amber-300">Includes 2.5% card fee: {money(Number(invoice.credit_card_fee), invoice.currency)}</p>}{Number(invoice.deposit_amount || 0) > 0 && <p className="text-xs text-cyan-300">Deposit required: {money(Number(invoice.deposit_amount), invoice.currency)}</p>}<p className="text-xs text-green-400">Paid: {money(Number(invoice.amount_paid || 0), invoice.currency)}</p><p className="text-xs font-semibold text-amber-400">Balance due: {money(Math.max(0, Number(invoice.amount) - Number(invoice.amount_paid || 0)), invoice.currency)}</p><p className="mb-3 mt-1 text-xs text-mist/60">{invoice.due_date ? `Due ${new Date(`${invoice.due_date}T00:00:00`).toLocaleDateString()}` : 'No due date'}</p><div className="mb-2 flex gap-2"><input aria-label={`Payment amount for ${invoice.customer_name}`} min="0.01" max={Math.max(0, Number(invoice.amount) - Number(invoice.amount_paid || 0))} step="0.01" type="number" placeholder="Payment amount" className={inputClass} value={paymentAmounts[invoice.id] ?? ''} onChange={event => setPaymentAmounts(previous => ({ ...previous, [invoice.id]: event.target.value }))} disabled={invoice.status === 'paid' || invoice.status === 'void'} /><button type="button" onClick={() => recordPayment(invoice)} disabled={recordingPayment === invoice.id || invoice.status === 'paid' || invoice.status === 'void'} className="whitespace-nowrap rounded-lg bg-ember px-3 py-2 text-xs font-medium text-white disabled:opacity-50">{recordingPayment === invoice.id ? 'Saving…' : 'Record Payment'}</button></div><div className="flex gap-2">{invoice.payment_url && <><button type="button" onClick={() => copyLink(invoice.payment_url!)} className="rounded-lg border border-line p-2 text-mist hover:bg-hover" title="Copy payment link"><Copy className="h-4 w-4" /></button><a href={invoice.payment_url} target="_blank" rel="noreferrer" className="rounded-lg border border-line p-2 text-mist hover:bg-hover" title="Open payment link"><ExternalLink className="h-4 w-4" /></a></>}<select aria-label={`Status for ${invoice.customer_name}`} className={inputClass} value={invoice.status} onChange={event => updateStatus(invoice, event.target.value as InvoiceStatus)}>{statuses.map(status => <option key={status} value={status}>{status.replace('_', ' ')}</option>)}</select></div></div>
+            </div>
+            <div className="mt-4 flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-mist/70"><span>Event: {invoice.event_date ? new Date(`${invoice.event_date}T00:00:00`).toLocaleDateString() : 'Not set'}</span><span>Guests: {invoice.guest_count || 'Not set'}</span><span>Service: {invoice.service_type || 'Not set'}</span><span>Location: {invoice.event_location || 'Not set'}</span></div>
+              <div className="flex shrink-0 gap-2"><a href={`/api/invoices/${invoice.id}/pdf`} className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-medium text-mist hover:bg-hover"><Download className="h-4 w-4" />Download PDF</a><button type="button" onClick={() => emailInvoice(invoice)} disabled={sendingInvoice === invoice.id || !invoice.customer_email} className="inline-flex items-center gap-1.5 rounded-lg bg-ember px-3 py-2 text-xs font-medium text-white disabled:opacity-50">{sendingInvoice === invoice.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}Email Invoice</button></div>
             </div>
           </article>
         ))}</div>}
