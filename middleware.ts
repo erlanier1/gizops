@@ -8,6 +8,7 @@ const ROLE_ROUTES: Record<string, string[]> = {
   '/settings/users': ['owner', 'super_admin'],
   '/settings': ['owner', 'super_admin'],
   '/payments': ['owner', 'manager', 'super_admin'],
+  '/invoices': ['owner', 'manager', 'super_admin'],
   '/receipts': ['owner', 'manager', 'super_admin'],
 };
 

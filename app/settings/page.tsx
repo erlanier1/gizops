@@ -147,6 +147,11 @@ export default function SettingsPage() {
                 <input id="website" className={inputClass} value={form.website} onChange={e => set('website', e.target.value)} placeholder="https://example.com" />
               </div>
               <div className="md:col-span-2">
+                <label htmlFor="logo_url" className={labelClass}>Invoice logo URL</label>
+                <input id="logo_url" type="url" className={inputClass} value={form.logo_url} onChange={e => set('logo_url', e.target.value)} placeholder="https://example.com/images/logo.png" />
+                <p className="mt-1.5 text-[11px] text-mist/50">PayPal uses this public image on customer invoices.</p>
+              </div>
+              <div className="md:col-span-2">
                 <label htmlFor="address" className={labelClass}>Address</label>
                 <input id="address" className={inputClass} value={form.address} onChange={e => set('address', e.target.value)} />
               </div>
@@ -201,6 +206,7 @@ export default function SettingsPage() {
               <h2 className="text-sm font-semibold text-cream">Business Preview</h2>
             </div>
             <div className="rounded-lg border border-line bg-coal p-4">
+              {form.logo_url && <img src={form.logo_url} alt="Business logo preview" className="mb-3 h-16 w-16 rounded-lg bg-white object-contain p-1" />}
               <p className="text-lg font-bold text-cream">{form.business_name || 'Business name'}</p>
               <p className="mt-1 text-xs text-mist">{form.brand_tagline || 'Brand tagline'}</p>
               <p className="mt-3 text-xs leading-5 text-mist/70">

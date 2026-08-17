@@ -69,6 +69,7 @@ create table if not exists public.business_profiles (
   contact_email text,
   contact_phone text,
   website text,
+  logo_url text,
   address text,
   city text,
   state text,
@@ -78,6 +79,9 @@ create table if not exists public.business_profiles (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.business_profiles
+  add column if not exists logo_url text;
 
 create table if not exists public.account_modules (
   id uuid primary key default gen_random_uuid(),

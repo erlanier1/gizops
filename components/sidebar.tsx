@@ -7,7 +7,7 @@ import {
   LayoutDashboard, FileText, CalendarDays, FolderOpen, Flame,
   ChevronRight, ChefHat, Users, CreditCard, Package, BarChart3,
   Settings, LogOut, Loader2, UserCog, FileSignature, Building2, ContactRound, Receipt,
-  CircleHelp,
+  CircleHelp, BadgeDollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/lib/auth-context';
@@ -160,6 +160,7 @@ export function Sidebar() {
           {shouldShowModule('permits') && <NavItem href="/permits" icon={FileText} label={labelFor('permits')} />}
           {shouldShowModule('bookings') && <NavItem href="/bookings" icon={CalendarDays} label={labelFor('bookings')} />}
           {shouldShowModule('proposals') && <NavItem href="/proposals" icon={FileSignature} label={labelFor('proposals')} />}
+          <NavItem href="/invoices" icon={BadgeDollarSign} label="Invoices" />
           {shouldShowModule('inventory') && <NavItem href="/inventory" icon={Package} label={labelFor('inventory')} />}
           {shouldShowModule('receipts') && <NavItem href="/receipts" icon={Receipt} label={labelFor('receipts')} />}
           {shouldShowModule('documents') && <NavItem href="/documents" icon={FolderOpen} label={labelFor('documents')} />}
