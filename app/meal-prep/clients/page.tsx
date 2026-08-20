@@ -231,6 +231,7 @@ export default function MealPrepClientsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          accountId: selectedAccountId,
           mealPrepClientId: savedClient.id,
           clientName: client.clientName,
           email: client.email,

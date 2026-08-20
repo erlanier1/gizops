@@ -107,6 +107,7 @@ export default function MealPrepPaymentsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          accountId: selectedAccountId,
           mealPrepClientId: client.id,
           clientName: client.client_name,
           email: client.email,

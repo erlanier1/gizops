@@ -100,6 +100,7 @@ export default function InvoicesPage() {
   const [paymentAmounts, setPaymentAmounts] = useState<Record<string, string>>({});
   const [recordingPayment, setRecordingPayment] = useState<string | null>(null);
   const [sendingInvoice, setSendingInvoice] = useState<string | null>(null);
+  const [generatingPaymentLink, setGeneratingPaymentLink] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const fetchInvoices = useCallback(async () => {
@@ -142,6 +143,41 @@ export default function InvoicesPage() {
   const preFeePreview = taxablePreview + salesTaxPreview;
   const paymentFeePreview = ['credit_card', 'cash_app'].includes(form.provider) ? Number((preFeePreview * 0.025).toFixed(2)) : 0;
   const totalDuePreview = preFeePreview + paymentFeePreview;
+
+  const generatePaymentLink = async () => {
+    if (!selectedAccountId) {
+      setToast({ message: 'Select a company workspace first.', type: 'error' });
+      return;
+    }
+    if (!form.customerName.trim() || !form.customerEmail.trim() || totalDuePreview < 1) {
+      setToast({ message: 'Enter the customer name, email, and invoice amount before generating a payment link.', type: 'error' });
+      return;
+    }
+    setGeneratingPaymentLink(true);
+    try {
+      const response = await fetch('/api/payments/deposit-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: selectedAccountId,
+          clientName: form.customerName.trim(),
+          email: form.customerEmail.trim(),
+          eventDate: form.eventDate || null,
+          eventType: form.serviceType.trim() || 'invoice',
+          amount: totalDuePreview,
+          description: form.description.trim() || `Invoice payment for ${form.customerName.trim()}`,
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Payment link could not be created.');
+      setForm(current => ({ ...current, paymentUrl: body.url }));
+      setToast({ message: 'Payment link created. Save the invoice to email it to the customer.', type: 'success' });
+    } catch (error) {
+      setToast({ message: error instanceof Error ? error.message : 'Payment link could not be created.', type: 'error' });
+    } finally {
+      setGeneratingPaymentLink(false);
+    }
+  };
 
   const createInvoice = async (event: FormEvent) => {
     event.preventDefault();
@@ -313,7 +349,7 @@ export default function InvoicesPage() {
             <label className="text-xs font-medium text-mist">Deposit required (USD)<span className="relative mt-1.5 block"><span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-mist">$</span><input min="0" step="0.01" type="number" inputMode="decimal" className={`${inputClass} pl-7`} value={form.depositAmount} onChange={event => setForm({ ...form, depositAmount: event.target.value })} placeholder="0.00" /></span></label>
             <label className="text-xs font-medium text-mist">Due date<input type="date" className={`${inputClass} mt-1.5`} value={form.dueDate} onChange={event => setForm({ ...form, dueDate: event.target.value })} /></label>
             <label className="text-xs font-medium text-mist">Payment method<select className={`${inputClass} mt-1.5`} value={form.provider} onChange={event => setForm({ ...form, provider: event.target.value as Provider })}><option value="credit_card">Credit card — add 2.5% fee</option><option value="cash_app">Cash App — add 2.5% fee</option><option value="zelle">Zelle</option><option value="corporate_check">Corporate check only</option></select></label>
-            <label className="text-xs font-medium text-mist">Payment link (optional)<input type="url" placeholder="Paste the payment link" className={`${inputClass} mt-1.5`} value={form.paymentUrl} onChange={event => setForm({ ...form, paymentUrl: event.target.value })} /></label>
+            <label className="text-xs font-medium text-mist">Payment link (optional)<span className="mt-1.5 flex gap-2"><input type="url" placeholder="Generate or paste the payment link" className={inputClass} value={form.paymentUrl} onChange={event => setForm({ ...form, paymentUrl: event.target.value })} /><button type="button" onClick={generatePaymentLink} disabled={generatingPaymentLink} className="whitespace-nowrap rounded-lg border border-ember px-3 text-xs font-semibold text-ember hover:bg-ember/10 disabled:opacity-60">{generatingPaymentLink ? 'Generating…' : 'Generate Link'}</button></span></label>
             <div className="rounded-lg border border-line bg-coal p-4 text-sm md:col-span-2"><div className="flex justify-between text-mist"><span>Subtotal</span><span>{money(subtotalPreview)}</span></div>{discountPreview > 0 && <div className="mt-1 flex justify-between text-green-400"><span>Discount</span><span>-{money(discountPreview)}</span></div>}<div className="mt-1 flex justify-between text-mist"><span>Sales tax ({Number(form.salesTaxRate || 0).toFixed(2)}%)</span><span>{money(salesTaxPreview)}</span></div>{paymentFeePreview > 0 && <div className="mt-1 flex justify-between text-amber-300"><span>Payment fee (2.5%)</span><span>{money(paymentFeePreview)}</span></div>}<div className="mt-3 flex justify-between border-t border-line pt-3 text-base font-bold text-cream"><span>Total Due</span><span>{money(totalDuePreview)}</span></div></div>
             <label className="text-xs font-medium text-mist md:col-span-2">Event menu and services<textarea required rows={10} className={`${inputClass} mt-1.5 min-h-56 resize-y leading-6`} value={form.description} onChange={event => setForm({ ...form, description: event.target.value })} placeholder="Add the complete event menu, quantities, service details, rentals, staffing, delivery, and other event notes." /></label>
             <label className="text-xs font-medium text-mist md:col-span-2">Internal notes<textarea rows={3} className={`${inputClass} mt-1.5`} value={form.notes} onChange={event => setForm({ ...form, notes: event.target.value })} /></label>
