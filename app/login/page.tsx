@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Flame, Loader2, Clock, ArrowLeft, Mail } from 'lucide-react';
+import { Flame, Loader2, Clock, ArrowLeft, Mail, KeyRound } from 'lucide-react';
 
 // Shared input class — text-base (16px) prevents iOS zoom on focus
 const inp = 'w-full rounded-lg bg-coal border border-line px-4 py-3.5 text-base text-cream placeholder-mist/40 focus:border-ember focus:outline-none focus:ring-1 focus:ring-ember transition-colors min-h-[48px]';
@@ -287,6 +287,23 @@ function LoginContent() {
                   Forgot password?
                 </button>
               </div>
+
+              <div className="my-5 flex items-center gap-3" aria-hidden="true">
+                <span className="h-px flex-1 bg-line" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-mist/40">Staff access</span>
+                <span className="h-px flex-1 bg-line" />
+              </div>
+
+              <a
+                href="/staff/login"
+                className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-lg border border-line bg-coal px-4 text-sm font-semibold text-cream transition-colors hover:border-ember hover:bg-hover"
+              >
+                <KeyRound className="h-4 w-4 text-ember" />
+                Staff ID / PIN Login
+              </a>
+              <p className="mt-2 text-center text-[11px] leading-4 text-mist/50">
+                For restaurant, food-truck, event, and employee-device access.
+              </p>
             </>
           )}
         </div>
