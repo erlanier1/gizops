@@ -1,5 +1,6 @@
 import { getCurrentProfile, isSuperAdmin } from '@/lib/api-auth';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { sendCustomerInvoiceEmail } from '@/lib/invoice-email';
 
 const invoiceFields = 'id, invoice_number, customer_name, customer_email, event_date, guest_count, event_location, service_type, description, subtotal, discount_amount, sales_tax_rate, sales_tax_amount, amount, credit_card_fee, deposit_amount, amount_paid, currency, due_date, provider, provider_reference, payment_url, status, notes, emailed_at, created_at';
 const paymentMethods = ['credit_card', 'cash_app', 'zelle', 'corporate_check'];
@@ -27,7 +28,19 @@ export async function POST(req) {
       .single();
 
     if (error) throw error;
-    return Response.json({ invoice: data });
+
+    if (!data.customer_email) {
+      return Response.json({ invoice: data, email: { sent: false, error: 'No customer email was provided.' } });
+    }
+
+    const { data: business } = await supabaseAdmin.from('business_profiles').select('*').eq('account_id', body.account_id).maybeSingle();
+    try {
+      const sent = await sendCustomerInvoiceEmail(data, business || {});
+      return Response.json({ invoice: { ...data, emailed_at: sent.emailedAt }, email: { sent: true } });
+    } catch (emailError) {
+      console.error('Automatic invoice email error:', emailError);
+      return Response.json({ invoice: data, email: { sent: false, error: emailError.message || 'Invoice email could not be sent.' } });
+    }
   } catch (error) {
     console.error('Invoice save error:', error);
     return Response.json({ error: error.message || 'Invoice could not be saved.' }, { status: 500 });

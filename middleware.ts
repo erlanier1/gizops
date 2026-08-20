@@ -12,7 +12,7 @@ const ROLE_ROUTES: Record<string, string[]> = {
   '/receipts': ['owner', 'manager', 'super_admin'],
 };
 
-const PUBLIC_ROUTES = ['/login', '/auth'];
+const PUBLIC_ROUTES = ['/login', '/auth', '/staff'];
 
 type ActiveProfile = {
   role: string;
@@ -76,6 +76,7 @@ export async function middleware(req: NextRequest) {
   // Public routes: redirect authenticated users with an active profile away from login.
   // If the saved browser session has no active profile, allow login so the app can clear it.
   if (PUBLIC_ROUTES.some((r) => path.startsWith(r))) {
+    if (path.startsWith('/staff')) return res;
     if (path === '/login' && req.nextUrl.searchParams.get('force') === '1') return res;
     if (session && activeProfile) return NextResponse.redirect(new URL('/dashboard', req.url));
     return res;

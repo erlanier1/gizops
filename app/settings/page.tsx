@@ -139,6 +139,11 @@ export default function SettingsPage() {
                 <input id="contact_email" type="email" className={inputClass} value={form.contact_email} onChange={e => set('contact_email', e.target.value)} />
               </div>
               <div>
+                <label htmlFor="invoice_from_email" className={labelClass}>Invoice sender email</label>
+                <input id="invoice_from_email" type="email" className={inputClass} value={form.invoice_from_email} onChange={e => set('invoice_from_email', e.target.value)} placeholder="invoices@example.com" />
+                <p className="mt-1.5 text-[11px] text-mist/50">The domain must be verified with the email provider before invoices can be delivered.</p>
+              </div>
+              <div>
                 <label htmlFor="contact_phone" className={labelClass}>Contact phone</label>
                 <input id="contact_phone" className={inputClass} value={form.contact_phone} onChange={e => set('contact_phone', e.target.value)} />
               </div>

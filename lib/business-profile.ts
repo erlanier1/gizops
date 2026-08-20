@@ -9,6 +9,7 @@ export type BusinessProfile = {
   business_name: string;
   legal_name: string;
   contact_email: string;
+  invoice_from_email: string;
   contact_phone: string;
   website: string;
   logo_url: string;
@@ -24,6 +25,7 @@ export const DEFAULT_BUSINESS_PROFILE: BusinessProfile = {
   business_name: "Zig's Kitchen",
   legal_name: "Zig's Kitchen",
   contact_email: '',
+  invoice_from_email: '',
   contact_phone: '',
   website: '',
   logo_url: '',
@@ -77,7 +79,7 @@ export function useBusinessProfile() {
 
     const { data, error } = await supabase
       .from('business_profiles')
-      .select('business_name, legal_name, contact_email, contact_phone, website, logo_url, address, city, state, postal_code, brand_tagline, proposal_footer')
+      .select('business_name, legal_name, contact_email, invoice_from_email, contact_phone, website, logo_url, address, city, state, postal_code, brand_tagline, proposal_footer')
       .eq('account_id', accountId)
       .maybeSingle();
 

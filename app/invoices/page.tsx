@@ -215,7 +215,9 @@ export default function InvoicesPage() {
       setInvoices(previous => [data as Invoice, ...previous]);
       setForm(blankForm);
       setShowForm(false);
-      setToast({ message: 'Invoice saved with payment instructions.', type: 'success' });
+      setToast(body.email?.sent
+        ? { message: `Invoice saved and emailed to ${data.customer_email}.`, type: 'success' }
+        : { message: `Invoice saved, but the email was not sent: ${body.email?.error || 'Unknown email error'}`, type: 'error' });
     } catch (error) {
       const message = error instanceof DOMException && error.name === 'AbortError'
         ? 'The save took too long. Please check your connection and try again.'

@@ -67,6 +67,7 @@ create table if not exists public.business_profiles (
   business_name text not null,
   legal_name text,
   contact_email text,
+  invoice_from_email text,
   contact_phone text,
   website text,
   logo_url text,
@@ -81,7 +82,13 @@ create table if not exists public.business_profiles (
 );
 
 alter table public.business_profiles
-  add column if not exists logo_url text;
+  add column if not exists logo_url text,
+  add column if not exists invoice_from_email text;
+
+update public.business_profiles
+set invoice_from_email = 'info@zigskitchen.com'
+where invoice_from_email is null
+  and lower(business_name) like '%zig%kitchen%';
 
 create table if not exists public.account_modules (
   id uuid primary key default gen_random_uuid(),

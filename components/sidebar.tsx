@@ -176,6 +176,7 @@ export function Sidebar() {
             <NavItem href="/platform/companies" icon={Building2} label="Companies" />
           </RoleGuard>
           <NavItem href="/settings/users" icon={UserCog}   label="Team" />
+          <NavItem href="/settings/staff" icon={Users} label="Staff & PINs" />
           <NavItem href="/settings"       icon={Settings}  label="Settings" />
         </RoleGuard>
 

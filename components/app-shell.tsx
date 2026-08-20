@@ -5,7 +5,7 @@ import { Sidebar } from '@/components/sidebar';
 import { InactivityGuard } from '@/components/inactivity-guard';
 import { AccountScopeProvider } from '@/lib/account-scope';
 
-const AUTH_ROUTES = ['/login', '/auth'];
+const AUTH_ROUTES = ['/login', '/auth', '/staff'];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
