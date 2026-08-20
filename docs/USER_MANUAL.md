@@ -1,6 +1,6 @@
 # GizOps User Manual
 
-Last updated: June 23, 2026
+Last updated: August 20, 2026
 
 ## Purpose
 
@@ -523,6 +523,50 @@ If an account is created with a temporary password instead of an emailed registr
 
 For ACIRE super admins, a company workspace must be selected before inviting a company user. If **Admin Portal — default view** is selected, switch to the company first.
 
+## Staff Password And PIN Setup
+
+Staff clock-in accounts are separate from the email/password users listed under **Team**. Use **Staff & PINs** for employees who need a quick mobile, restaurant-tablet, food-truck, or event login.
+
+### Administrator setup
+
+As an ACIRE super admin or company owner:
+
+1. Select the correct company in the **Company Workspace** dropdown.
+2. Open **Staff & PINs** from the sidebar.
+3. Click **Create Staff Login**.
+4. Enter the employee ID, full name, optional email/mobile number, role, and location.
+5. Create a temporary password containing at least eight characters.
+6. Give the employee their employee ID and temporary password securely.
+
+The administrator creates the temporary password, but the employee creates and owns their PIN.
+
+### Employee first login
+
+1. Open `/staff/login` on the employee's phone or a company device.
+2. Select the company and where the employee is working: restaurant, food truck, or event/mobile.
+3. Enter the employee ID and temporary password.
+4. GizOps opens **Set up your PIN**.
+5. Enter and confirm a personal six-digit numeric PIN.
+6. Click **Save PIN**.
+
+The temporary password stops working after the PIN is saved. Future staff logins use the employee ID and six-digit PIN.
+
+### Changing an existing PIN
+
+After signing in, click the key icon in the staff page header. Enter the current PIN, enter and confirm a different six-digit PIN, and click **Save new PIN**.
+
+### Administrator resets and lockouts
+
+In **Staff & PINs**, an administrator can:
+
+- Set a new temporary password. This clears the old PIN and requires the employee to create a new PIN after the next login.
+- Reset the PIN directly when operationally necessary.
+- Unlock an account.
+
+Five incorrect login attempts lock the staff account for 15 minutes. An administrator can unlock it sooner from **Staff & PINs**.
+
+Only mark a device as **Trusted work device** when it is a company-controlled restaurant or food-truck tablet. Personal-device sessions expire after eight hours; trusted-device sessions expire after 12 hours.
+
 Invitation email setup requires Resend to be configured in production. At minimum, Vercel must include:
 
 ```text
@@ -568,6 +612,7 @@ supabase/business_profiles.sql
 supabase/contact_leads.sql
 supabase/tenant_data_scope.sql
 supabase/purchase_receipts.sql
+supabase/staff_auth.sql
 supabase/seed_zigs_kitchen.sql
 ```
 
@@ -593,6 +638,7 @@ PAYPAL_INVOICER_NAME
 RESEND_API_KEY
 CONTACT_FROM_EMAIL
 INVITE_FROM_EMAIL
+STAFF_SESSION_SECRET
 ```
 
 Restart or redeploy after changing environment variables.
