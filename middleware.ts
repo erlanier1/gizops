@@ -10,6 +10,7 @@ const ROLE_ROUTES: Record<string, string[]> = {
   '/payments': ['owner', 'manager', 'super_admin'],
   '/invoices': ['owner', 'manager', 'super_admin'],
   '/receipts': ['owner', 'manager', 'super_admin'],
+  '/workforce': ['owner', 'manager', 'super_admin'],
 };
 
 const PUBLIC_ROUTES = ['/login', '/auth', '/staff'];

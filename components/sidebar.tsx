@@ -171,6 +171,7 @@ export function Sidebar() {
         </RoleGuard>
         <RoleGuard roles={['owner', 'manager', 'super_admin']}>
           {shouldShowModule('reports') && <NavItem href="/reports" icon={BarChart3} label={labelFor('reports')} />}
+          <NavItem href="/workforce" icon={CalendarDays} label="Scheduling & Timesheets" />
         </RoleGuard>
 
         <RoleGuard roles={['owner', 'super_admin']}>
