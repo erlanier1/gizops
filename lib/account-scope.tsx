@@ -53,8 +53,20 @@ export function AccountScopeProvider({ children }: { children: React.ReactNode }
     setLoading(true);
 
     if (!isSuperAdmin) {
-      setAccounts([]);
-      setSelectedAccountIdState(profile?.account_id ?? null);
+      const accountId = profile?.account_id ?? null;
+      if (!accountId) {
+        setAccounts([]);
+        setSelectedAccountIdState(null);
+        setLoading(false);
+        return;
+      }
+      const { data: assignedAccount } = await supabase
+        .from('accounts')
+        .select('id, name, slug, is_active')
+        .eq('id', accountId)
+        .maybeSingle();
+      setAccounts(assignedAccount ? [assignedAccount as ScopedAccount] : []);
+      setSelectedAccountIdState(accountId);
       setLoading(false);
       return;
     }
