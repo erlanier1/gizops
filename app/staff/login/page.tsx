@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Flame, MapPin, Truck, Utensils, CalendarDays, Loader2 } from 'lucide-react';
+import { InstallAppButton } from '@/components/install-app-button';
 
 const input = 'w-full min-h-[52px] rounded-xl border border-line bg-coal px-4 text-base text-cream focus:border-ember focus:outline-none';
 type Option = { id:string; name:string; type?:string };
@@ -28,5 +29,6 @@ export default function StaffLogin() {
       {error&&<p role="alert" className="rounded-lg border border-red-800 bg-red-950/50 p-3 text-sm text-red-300">{error}</p>}
       <button disabled={busy} className="min-h-[54px] w-full rounded-xl bg-ember font-semibold text-white disabled:opacity-60">{busy?<Loader2 className="mx-auto animate-spin"/>:'Clock In & Enter'}</button>
       <a href="/login" className="block text-center text-xs text-mist hover:text-ember">Admin email/password login</a>
+      <InstallAppButton />
     </form></div></main>;
 }

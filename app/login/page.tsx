@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Flame, Loader2, Clock, ArrowLeft, Mail, KeyRound } from 'lucide-react';
+import { InstallAppButton } from '@/components/install-app-button';
 
 // Shared input class — text-base (16px) prevents iOS zoom on focus
 const inp = 'w-full rounded-lg bg-coal border border-line px-4 py-3.5 text-base text-cream placeholder-mist/40 focus:border-ember focus:outline-none focus:ring-1 focus:ring-ember transition-colors min-h-[48px]';
@@ -307,6 +308,8 @@ function LoginContent() {
             </>
           )}
         </div>
+
+        <InstallAppButton />
 
         <p className="mt-6 text-center text-xs text-mist/30">
           GizOps · Invitation only

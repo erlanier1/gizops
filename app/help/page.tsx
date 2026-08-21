@@ -75,8 +75,8 @@ const guides = [
     description: 'GizOps is mobile-ready and can be installed as an app from a supported browser.',
     icon: Smartphone,
     steps: [
-      'Open www.gizops.com in Safari, Chrome, or Edge on the device.',
-      'Choose Add to Home Screen or Install App from the browser menu.',
+      'Open www.gizops.com in Safari, Chrome, or Edge on the device and select Install GizOps App on either login screen.',
+      'Accept the install prompt. On iPhone or iPad, follow the displayed Share → Add to Home Screen instructions.',
       'Open GizOps from the new home-screen icon and sign in normally.',
       'Use the menu button at the top of a phone or tablet to open and close navigation.',
     ],
