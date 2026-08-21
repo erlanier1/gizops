@@ -150,7 +150,7 @@ export default function InvoicesPage() {
     setEditingInvoice(invoice);
     setForm({ customerName: invoice.customer_name, customerEmail: invoice.customer_email || '', eventDate: invoice.event_date || '', guestCount: invoice.guest_count ? String(invoice.guest_count) : '', eventLocation: invoice.event_location || '', serviceType: invoice.service_type || '', description: invoice.description, amount: String(invoice.subtotal), discountAmount: String(invoice.discount_amount || ''), salesTaxRate: String(invoice.sales_tax_rate || ''), depositAmount: String(invoice.deposit_amount || ''), dueDate: invoice.due_date || '', provider: invoice.provider, paymentUrl: invoice.payment_url || '', notes: invoice.notes || '' });
     setShowForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.setTimeout(() => document.getElementById('invoice-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
   };
 
   const generatePaymentLink = async () => {
@@ -344,7 +344,7 @@ export default function InvoicesPage() {
       )}
 
       {showForm && selectedAccountId && (
-        <form onSubmit={createInvoice} className="mb-6 rounded-xl border border-line bg-smoke p-5">
+        <form id="invoice-editor" onSubmit={createInvoice} className="mb-6 scroll-mt-4 rounded-xl border-2 border-ember/60 bg-smoke p-5 shadow-lg shadow-ember/10">
           <div className="mb-4 flex items-center gap-2"><BadgeDollarSign className="h-5 w-5 text-ember" /><h2 className="font-semibold text-cream">{editingInvoice ? `Edit ${invoiceLabel(editingInvoice.invoice_number)}` : 'New Invoice'}</h2></div>
           <div className="grid gap-4 md:grid-cols-2">
             <label className="text-xs font-medium text-mist">Customer name<input required className={`${inputClass} mt-1.5`} value={form.customerName} onChange={event => setForm({ ...form, customerName: event.target.value })} /></label>
