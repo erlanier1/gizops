@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { BadgeDollarSign, Copy, Download, ExternalLink, Loader2, Mail, Plus, RefreshCw, X } from 'lucide-react';
+import { BadgeDollarSign, Copy, Download, ExternalLink, Loader2, Mail, Pencil, Plus, RefreshCw, X } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { Toast } from '@/components/ui/toast';
 import { useAccountScope } from '@/lib/account-scope';
@@ -93,6 +93,7 @@ export default function InvoicesPage() {
   const { selectedAccount, selectedAccountId } = useAccountScope();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [form, setForm] = useState(blankForm);
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -143,6 +144,14 @@ export default function InvoicesPage() {
   const preFeePreview = taxablePreview + salesTaxPreview;
   const paymentFeePreview = ['credit_card', 'cash_app'].includes(form.provider) ? Number((preFeePreview * 0.025).toFixed(2)) : 0;
   const totalDuePreview = preFeePreview + paymentFeePreview;
+
+  const closeForm = () => { setShowForm(false); setEditingInvoice(null); setForm(blankForm); };
+  const editInvoice = (invoice: Invoice) => {
+    setEditingInvoice(invoice);
+    setForm({ customerName: invoice.customer_name, customerEmail: invoice.customer_email || '', eventDate: invoice.event_date || '', guestCount: invoice.guest_count ? String(invoice.guest_count) : '', eventLocation: invoice.event_location || '', serviceType: invoice.service_type || '', description: invoice.description, amount: String(invoice.subtotal), discountAmount: String(invoice.discount_amount || ''), salesTaxRate: String(invoice.sales_tax_rate || ''), depositAmount: String(invoice.deposit_amount || ''), dueDate: invoice.due_date || '', provider: invoice.provider, paymentUrl: invoice.payment_url || '', notes: invoice.notes || '' });
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const generatePaymentLink = async () => {
     if (!selectedAccountId) {
@@ -214,8 +223,8 @@ export default function InvoicesPage() {
     try {
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 15000);
-      const response = await fetch('/api/invoices', {
-        method: 'POST',
+      const response = await fetch(editingInvoice ? `/api/invoices/${editingInvoice.id}` : '/api/invoices', {
+        method: editingInvoice ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
         body: JSON.stringify({
@@ -239,7 +248,7 @@ export default function InvoicesPage() {
         provider: form.provider,
         provider_reference: null,
         payment_url: form.paymentUrl.trim() || null,
-        status: 'sent',
+        status: editingInvoice?.status || 'sent',
         notes: form.notes.trim() || null,
         }),
       });
@@ -248,12 +257,13 @@ export default function InvoicesPage() {
       if (!response.ok) throw new Error(body.error || 'Invoice could not be saved.');
       const data = body.invoice;
 
-      setInvoices(previous => [data as Invoice, ...previous]);
-      setForm(blankForm);
-      setShowForm(false);
-      setToast(body.email?.sent
-        ? { message: `Invoice saved and emailed to ${data.customer_email}.`, type: 'success' }
-        : { message: `Invoice saved, but the email was not sent: ${body.email?.error || 'Unknown email error'}`, type: 'error' });
+      setInvoices(previous => editingInvoice ? previous.map(item => item.id === data.id ? data as Invoice : item) : [data as Invoice, ...previous]);
+      closeForm();
+      setToast(editingInvoice
+        ? { message: 'Invoice updated. Use Email Invoice to send the revised version to the customer.', type: 'success' }
+        : body.email?.sent
+          ? { message: `Invoice saved and emailed to ${data.customer_email}.`, type: 'success' }
+          : { message: `Invoice saved, but the email was not sent: ${body.email?.error || 'Unknown email error'}`, type: 'error' });
     } catch (error) {
       const message = error instanceof DOMException && error.name === 'AbortError'
         ? 'The save took too long. Please check your connection and try again.'
@@ -322,7 +332,7 @@ export default function InvoicesPage() {
         title="Invoices"
         description={selectedAccount ? `Create and track PayPal or Stripe invoices for ${selectedAccount.name}.` : 'Create and track PayPal or Stripe invoices.'}
         action={selectedAccountId ? (
-          <button type="button" onClick={() => setShowForm(value => !value)} className="inline-flex items-center gap-2 rounded-lg bg-ember px-3 py-2 text-xs font-medium text-white hover:bg-ember-dark">
+          <button type="button" onClick={() => showForm ? closeForm() : setShowForm(true)} className="inline-flex items-center gap-2 rounded-lg bg-ember px-3 py-2 text-xs font-medium text-white hover:bg-ember-dark">
             {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
             {showForm ? 'Close' : 'New Invoice'}
           </button>
@@ -335,7 +345,7 @@ export default function InvoicesPage() {
 
       {showForm && selectedAccountId && (
         <form onSubmit={createInvoice} className="mb-6 rounded-xl border border-line bg-smoke p-5">
-          <div className="mb-4 flex items-center gap-2"><BadgeDollarSign className="h-5 w-5 text-ember" /><h2 className="font-semibold text-cream">New Invoice</h2></div>
+          <div className="mb-4 flex items-center gap-2"><BadgeDollarSign className="h-5 w-5 text-ember" /><h2 className="font-semibold text-cream">{editingInvoice ? `Edit ${invoiceLabel(editingInvoice.invoice_number)}` : 'New Invoice'}</h2></div>
           <div className="grid gap-4 md:grid-cols-2">
             <label className="text-xs font-medium text-mist">Customer name<input required className={`${inputClass} mt-1.5`} value={form.customerName} onChange={event => setForm({ ...form, customerName: event.target.value })} /></label>
             <label className="text-xs font-medium text-mist">Customer email<input type="email" className={`${inputClass} mt-1.5`} value={form.customerEmail} onChange={event => setForm({ ...form, customerEmail: event.target.value })} /></label>
@@ -348,13 +358,13 @@ export default function InvoicesPage() {
             <label className="text-xs font-medium text-mist">Sales tax rate<span className="relative mt-1.5 block"><input min="0" max="100" step="0.01" type="number" inputMode="decimal" className={`${inputClass} pr-8`} value={form.salesTaxRate} onChange={event => setForm({ ...form, salesTaxRate: event.target.value })} placeholder="0.00" /><span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-mist">%</span></span></label>
             <label className="text-xs font-medium text-mist">Deposit required (USD)<span className="relative mt-1.5 block"><span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-mist">$</span><input min="0" step="0.01" type="number" inputMode="decimal" className={`${inputClass} pl-7`} value={form.depositAmount} onChange={event => setForm({ ...form, depositAmount: event.target.value })} placeholder="0.00" /></span></label>
             <label className="text-xs font-medium text-mist">Due date<input type="date" className={`${inputClass} mt-1.5`} value={form.dueDate} onChange={event => setForm({ ...form, dueDate: event.target.value })} /></label>
-            <label className="text-xs font-medium text-mist">Payment method<select className={`${inputClass} mt-1.5`} value={form.provider} onChange={event => setForm({ ...form, provider: event.target.value as Provider })}><option value="credit_card">Credit card — add 2.5% fee</option><option value="cash_app">Cash App — add 2.5% fee</option><option value="zelle">Zelle</option><option value="corporate_check">Corporate check only</option></select></label>
+            <label className="text-xs font-medium text-mist">Payment method<select className={`${inputClass} mt-1.5`} value={form.provider} onChange={event => setForm({ ...form, provider: event.target.value as Provider })}><option value="credit_card">Credit card — add 2.5% fee</option><option value="cash_app">Cash App — add 2.5% fee</option><option value="zelle">Zelle</option><option value="corporate_check">Corporate check only</option>{editingInvoice?.provider==='paypal'&&<option value="paypal">PayPal (legacy)</option>}{editingInvoice?.provider==='stripe'&&<option value="stripe">Stripe (legacy)</option>}</select></label>
             <label className="text-xs font-medium text-mist">Payment link (optional)<span className="mt-1.5 flex gap-2"><input type="url" placeholder="Generate or paste the payment link" className={inputClass} value={form.paymentUrl} onChange={event => setForm({ ...form, paymentUrl: event.target.value })} /><button type="button" onClick={generatePaymentLink} disabled={generatingPaymentLink} className="whitespace-nowrap rounded-lg border border-ember px-3 text-xs font-semibold text-ember hover:bg-ember/10 disabled:opacity-60">{generatingPaymentLink ? 'Generating…' : 'Generate Link'}</button></span></label>
             <div className="rounded-lg border border-line bg-coal p-4 text-sm md:col-span-2"><div className="flex justify-between text-mist"><span>Subtotal</span><span>{money(subtotalPreview)}</span></div>{discountPreview > 0 && <div className="mt-1 flex justify-between text-green-400"><span>Discount</span><span>-{money(discountPreview)}</span></div>}<div className="mt-1 flex justify-between text-mist"><span>Sales tax ({Number(form.salesTaxRate || 0).toFixed(2)}%)</span><span>{money(salesTaxPreview)}</span></div>{paymentFeePreview > 0 && <div className="mt-1 flex justify-between text-amber-300"><span>Payment fee (2.5%)</span><span>{money(paymentFeePreview)}</span></div>}<div className="mt-3 flex justify-between border-t border-line pt-3 text-base font-bold text-cream"><span>Total Due</span><span>{money(totalDuePreview)}</span></div></div>
             <label className="text-xs font-medium text-mist md:col-span-2">Event menu and services<textarea required rows={10} className={`${inputClass} mt-1.5 min-h-56 resize-y leading-6`} value={form.description} onChange={event => setForm({ ...form, description: event.target.value })} placeholder="Add the complete event menu, quantities, service details, rentals, staffing, delivery, and other event notes." /></label>
             <label className="text-xs font-medium text-mist md:col-span-2">Internal notes<textarea rows={3} className={`${inputClass} mt-1.5`} value={form.notes} onChange={event => setForm({ ...form, notes: event.target.value })} /></label>
           </div>
-          <div className="mt-4 flex items-center justify-between gap-4"><p className="text-xs text-mist/60">Accepted: credit card, Cash App, Zelle, and corporate checks only.</p><button disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-ember px-4 py-2 text-sm font-medium text-white disabled:opacity-60">{saving && <Loader2 className="h-4 w-4 animate-spin" />}Save Invoice</button></div>
+          <div className="mt-4 flex items-center justify-between gap-4"><p className="text-xs text-mist/60">{editingInvoice ? 'Payments and the invoice number are preserved when editing.' : 'Accepted: credit card, Cash App, Zelle, and corporate checks only.'}</p><button disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-ember px-4 py-2 text-sm font-medium text-white disabled:opacity-60">{saving && <Loader2 className="h-4 w-4 animate-spin" />}{editingInvoice ? 'Save Changes' : 'Save Invoice'}</button></div>
         </form>
       )}
 
@@ -377,7 +387,7 @@ export default function InvoicesPage() {
             </div>
             <div className="mt-4 flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-mist/70"><span>Event: {invoice.event_date ? new Date(`${invoice.event_date}T00:00:00`).toLocaleDateString() : 'Not set'}</span><span>Guests: {invoice.guest_count || 'Not set'}</span><span>Service: {invoice.service_type || 'Not set'}</span><span>Location: {invoice.event_location || 'Not set'}</span></div>
-              <div className="flex shrink-0 gap-2"><a href={`/api/invoices/${invoice.id}/pdf`} className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-medium text-mist hover:bg-hover"><Download className="h-4 w-4" />Download PDF</a><button type="button" onClick={() => emailInvoice(invoice)} disabled={sendingInvoice === invoice.id || !invoice.customer_email} className="inline-flex items-center gap-1.5 rounded-lg bg-ember px-3 py-2 text-xs font-medium text-white disabled:opacity-50">{sendingInvoice === invoice.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}Email Invoice</button></div>
+              <div className="flex shrink-0 flex-wrap gap-2"><button type="button" onClick={() => editInvoice(invoice)} disabled={invoice.status === 'void'} className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-medium text-mist hover:bg-hover disabled:opacity-40"><Pencil className="h-4 w-4" />Edit</button><a href={`/api/invoices/${invoice.id}/pdf`} className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-medium text-mist hover:bg-hover"><Download className="h-4 w-4" />Download PDF</a><button type="button" onClick={() => emailInvoice(invoice)} disabled={sendingInvoice === invoice.id || !invoice.customer_email} className="inline-flex items-center gap-1.5 rounded-lg bg-ember px-3 py-2 text-xs font-medium text-white disabled:opacity-50">{sendingInvoice === invoice.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}Email Invoice</button></div>
             </div>
           </article>
         ))}</div>}
