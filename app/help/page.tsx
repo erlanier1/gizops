@@ -5,10 +5,12 @@ import {
   CalendarDays,
   CircleHelp,
   CreditCard,
+  Clock3,
   FileText,
   Package,
   Receipt,
   ShieldCheck,
+  Smartphone,
   Users,
 } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
@@ -19,9 +21,9 @@ const guides = [
     description: 'Choose the correct company before reviewing or changing company records.',
     icon: Building2,
     steps: [
-      'Open the Company Workspace menu in the sidebar.',
-      'Choose the company you want to work with.',
-      'Confirm the company name shown beneath the GizOps logo.',
+      'Owners, managers, and staff are automatically placed in their assigned company.',
+      'ACIRE administrators should choose a company from Company Workspace in the sidebar.',
+      'Confirm the company name shown beneath the GizOps logo before changing records.',
     ],
   },
   {
@@ -32,6 +34,51 @@ const guides = [
       'Select the company workspace.',
       'Open Team under Admin.',
       'Invite the user and choose Owner, Manager, or Staff.',
+      'Use Owner for company administration, Manager for daily operations and workforce review, and Staff for limited operational access.',
+    ],
+  },
+  {
+    title: 'Employee ID and PIN access',
+    description: 'Managers and staff can clock in and enter their permitted GizOps workspace without entering a password each time.',
+    icon: ShieldCheck,
+    steps: [
+      'The owner first creates the person under Team and assigns Manager or Staff.',
+      'Open Staff & PINs, create the staff login, and use the same email and corresponding role as the Team account.',
+      'Give the employee their ID and temporary password privately. On first login, they create a personal 6-digit PIN.',
+      'Future Employee ID and PIN logins clock the employee in and open the dashboard automatically.',
+    ],
+  },
+  {
+    title: 'Clocking in and out',
+    description: 'Clock activity is tied to the employee, work location, and active shift.',
+    icon: Clock3,
+    steps: [
+      'Open Staff ID / PIN Login from the main login page.',
+      'Choose the company, work type, and location or event, then enter Employee ID and PIN.',
+      'Use the dashboard clock card or Time Card menu to review status and clock out.',
+      'From the Time Card screen, select Open Dashboard to return to regular app functions.',
+    ],
+  },
+  {
+    title: 'Scheduling and timesheet approval',
+    description: 'Owners and managers can plan shifts and approve completed time entries by week.',
+    icon: CalendarDays,
+    steps: [
+      'Open Scheduling & Timesheets under Operations and select the week beginning date.',
+      'Choose an employee, location, start and end time, then add the shift.',
+      'Review completed clock entries, recorded hours, and pending approval totals.',
+      'Approve one entry or use Approve all pending for the selected week.',
+    ],
+  },
+  {
+    title: 'Phone, tablet, and installed app',
+    description: 'GizOps is mobile-ready and can be installed as an app from a supported browser.',
+    icon: Smartphone,
+    steps: [
+      'Open www.gizops.com in Safari, Chrome, or Edge on the device.',
+      'Choose Add to Home Screen or Install App from the browser menu.',
+      'Open GizOps from the new home-screen icon and sign in normally.',
+      'Use the menu button at the top of a phone or tablet to open and close navigation.',
     ],
   },
   {
@@ -78,9 +125,9 @@ const guides = [
 
 const quickLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: BookOpen },
-  { href: '/bookings', label: 'Bookings', icon: CalendarDays },
+  { href: '/workforce', label: 'Scheduling & Timesheets', icon: Clock3 },
   { href: '/inventory', label: 'Inventory', icon: Package },
-  { href: '/receipts', label: 'Receipts', icon: Receipt },
+  { href: '/staff', label: 'Time Card', icon: Receipt },
 ];
 
 export default function HelpPage() {
@@ -100,6 +147,15 @@ export default function HelpPage() {
               Company records, modules, branding, contacts, and reports depend on the workspace selected in the sidebar. ACIRE admins should confirm the company before entering or changing information.
             </p>
           </div>
+        </div>
+      </section>
+
+      <section className="mb-8 overflow-hidden rounded-xl border border-line bg-smoke">
+        <div className="border-b border-line p-4"><h2 className="font-semibold text-cream">Role access at a glance</h2></div>
+        <div className="grid gap-px bg-line sm:grid-cols-3">
+          <div className="bg-smoke p-4"><p className="font-semibold text-ember">Owner</p><p className="mt-1 text-sm leading-6 text-mist">All company operations, team and PIN administration, settings, schedules, and timesheet approval.</p></div>
+          <div className="bg-smoke p-4"><p className="font-semibold text-ember">Manager</p><p className="mt-1 text-sm leading-6 text-mist">POS, inventory, meal prep, bookings, contacts, documents, reports, schedules, and timesheet approval.</p></div>
+          <div className="bg-smoke p-4"><p className="font-semibold text-ember">Staff</p><p className="mt-1 text-sm leading-6 text-mist">Simplified dashboard, assigned operational areas, POS, meal-prep schedule, and personal Time Card.</p></div>
         </div>
       </section>
 
