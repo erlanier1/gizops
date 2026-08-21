@@ -1,8 +1,9 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Flame, Menu, X } from 'lucide-react';
+import { Flame, LayoutDashboard, Menu, X } from 'lucide-react';
 import { Sidebar } from '@/components/sidebar';
 import { InactivityGuard } from '@/components/inactivity-guard';
 import { AccountScopeProvider } from '@/lib/account-scope';
@@ -16,6 +17,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => setMobileOpen(false), [pathname]);
 
   const isAuthRoute = AUTH_ROUTES.some((r) => pathname.startsWith(r));
+
+  if (pathname === '/staff') {
+    return <>{children}<Link href="/dashboard" className="fixed bottom-4 right-4 z-40 flex min-h-12 items-center gap-2 rounded-xl bg-ember px-5 font-semibold text-white shadow-xl sm:bottom-6 sm:right-6"><LayoutDashboard className="h-5 w-5" />Open Dashboard</Link></>;
+  }
 
   if (isAuthRoute) {
     return <>{children}</>;

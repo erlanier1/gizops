@@ -33,14 +33,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, location: data });
   }
   if (!auth.accountId || !body.employee_code?.trim() || !body.full_name?.trim() || !body.temporary_password || body.temporary_password.length < 8) return NextResponse.json({ error: 'Employee ID, name, and a temporary password of at least 8 characters are required.' }, { status: 400 });
-  if (body.role === 'manager') {
-    const email = body.email?.trim().toLowerCase();
-    if (!email) return NextResponse.json({ error: 'A manager email is required for PIN access to GizOps.' }, { status: 400 });
+  const email = body.email?.trim().toLowerCase();
+  if (body.role === 'manager' && !email) return NextResponse.json({ error: 'A manager email is required for PIN access to GizOps.' }, { status: 400 });
+  if (email) {
+    const appRole = body.role === 'manager' ? 'manager' : 'staff';
     const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     const user = usersData?.users?.find(item => item.email?.toLowerCase() === email);
-    if (!user) return NextResponse.json({ error: 'Create this manager under Team first, then use the same email here.' }, { status: 400 });
-    const { data: profile } = await supabaseAdmin.from('profiles').select('id').eq('id', user.id).eq('account_id', auth.accountId).eq('role', 'manager').eq('is_active', true).maybeSingle();
-    if (!profile) return NextResponse.json({ error: 'The matching Team account must be an active Manager for this company.' }, { status: 400 });
+    if (!user) return NextResponse.json({ error: 'Create this person under Team first, then use the same email here.' }, { status: 400 });
+    const { data: profile } = await supabaseAdmin.from('profiles').select('id').eq('id', user.id).eq('account_id', auth.accountId).eq('role', appRole).eq('is_active', true).maybeSingle();
+    if (!profile) return NextResponse.json({ error: `The matching Team account must be an active ${appRole === 'manager' ? 'Manager' : 'Staff member'} for this company.` }, { status: 400 });
   }
   const { data, error } = await supabaseAdmin.from('staff_employees').insert({ account_id: auth.accountId, employee_code: body.employee_code.trim(), full_name: body.full_name.trim(), email: body.email?.trim() || null, mobile: body.mobile?.trim() || null, role: body.role || 'staff', location_id: body.location_id || null, password_hash: hashStaffSecret(body.temporary_password), must_set_pin: true }).select('id,employee_code,full_name,role,must_set_pin,is_active').single();
   if (error) return NextResponse.json({ error: error.code === '23505' ? 'That employee ID is already in use.' : error.message }, { status: 400 });
