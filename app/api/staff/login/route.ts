@@ -10,6 +10,19 @@ async function audit(req: NextRequest, employee: any, action: string, success: b
   await supabaseAdmin.from('staff_audit_log').insert({ account_id: employee?.account_id ?? null, employee_id: employee?.id ?? null, action, success, ip_address: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null, user_agent: req.headers.get('user-agent'), details });
 }
 
+async function createManagerAppAccess(employee: any) {
+  if (employee.role !== 'manager' || !employee.email) return null;
+  const email = employee.email.toLowerCase();
+  const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  const user = usersData?.users?.find(item => item.email?.toLowerCase() === email);
+  if (!user) return null;
+  const { data: profile } = await supabaseAdmin.from('profiles').select('id').eq('id', user.id).eq('account_id', employee.account_id).eq('role', 'manager').eq('is_active', true).maybeSingle();
+  if (!profile) return null;
+  const { data, error } = await supabaseAdmin.auth.admin.generateLink({ type: 'magiclink', email: employee.email });
+  if (error || !data?.properties?.hashed_token) return null;
+  return data.properties.hashed_token;
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const accountId = clean(body.account_id), code = clean(body.employee_code), credential = clean(body.credential);
@@ -36,7 +49,8 @@ export async function POST(req: NextRequest) {
     const { data: open } = await supabaseAdmin.from('staff_time_entries').select('id').eq('employee_id', employee.id).is('clocked_out_at', null).limit(1).maybeSingle();
     if (!open) await supabaseAdmin.from('staff_time_entries').insert({ account_id: accountId, employee_id: employee.id, location_id: body.location_id || null, event_id: body.event_id || null, device_type: device });
   }
-  const response = NextResponse.json({ success: true, must_set_pin: employee.must_set_pin, employee: { id: employee.id, full_name: employee.full_name, role: employee.role } });
+  const appTokenHash = employee.must_set_pin ? null : await createManagerAppAccess(employee);
+  const response = NextResponse.json({ success: true, must_set_pin: employee.must_set_pin, app_token_hash: appTokenHash, employee: { id: employee.id, full_name: employee.full_name, role: employee.role } });
   response.cookies.set(STAFF_COOKIE, token, staffCookieOptions(maxAge));
   return response;
 }
@@ -47,7 +61,7 @@ export async function PUT(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Session expired.' }, { status: 401 });
   const { pin, current_pin: currentPin } = await req.json();
   if (!/^\d{6}$/.test(pin)) return NextResponse.json({ error: 'PIN must be exactly 6 digits.' }, { status: 400 });
-  const { data: employee } = await supabaseAdmin.from('staff_employees').select('id,pin_hash,must_set_pin,is_active,credential_version').eq('id', session.employeeId).eq('account_id', session.accountId).maybeSingle();
+  const { data: employee } = await supabaseAdmin.from('staff_employees').select('id,account_id,email,role,pin_hash,must_set_pin,is_active,credential_version').eq('id', session.employeeId).eq('account_id', session.accountId).maybeSingle();
   if (!employee?.is_active || employee.credential_version !== session.credentialVersion) return NextResponse.json({ error: 'Session is no longer valid.' }, { status: 401 });
   if (!employee.must_set_pin && !verifyStaffSecret(clean(currentPin), employee.pin_hash)) {
     await supabaseAdmin.from('staff_audit_log').insert({ account_id: session.accountId, employee_id: session.employeeId, action: 'pin_change_failed', success: false });
@@ -60,5 +74,5 @@ export async function PUT(req: NextRequest) {
   await supabaseAdmin.from('staff_audit_log').insert({ account_id: session.accountId, employee_id: session.employeeId, action, success: true });
   const { data: open } = await supabaseAdmin.from('staff_time_entries').select('id').eq('employee_id', session.employeeId).is('clocked_out_at', null).limit(1).maybeSingle();
   if (!open) await supabaseAdmin.from('staff_time_entries').insert({ account_id: session.accountId, employee_id: session.employeeId, location_id: session.locationId, event_id: session.eventId, device_type: session.device });
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, app_token_hash: await createManagerAppAccess(employee) });
 }

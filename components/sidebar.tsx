@@ -7,7 +7,7 @@ import {
   LayoutDashboard, FileText, CalendarDays, FolderOpen, Flame,
   ChevronRight, ChefHat, Users, CreditCard, Package, BarChart3,
   Settings, LogOut, Loader2, UserCog, FileSignature, Building2, ContactRound, Receipt,
-  CircleHelp, BadgeDollarSign,
+  CircleHelp, BadgeDollarSign, Clock3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/lib/auth-context';
@@ -84,7 +84,7 @@ export function Sidebar() {
   const avatarColor = role ? (ROLE_COLOR[role] ?? '#8A7560') : '#8A7560';
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col bg-sidebar border-r border-line">
+    <aside className="flex h-full w-full md:w-64 shrink-0 flex-col bg-sidebar border-r border-line">
       {/* Brand */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-line">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-ember shrink-0">
@@ -167,11 +167,14 @@ export function Sidebar() {
         </RoleGuard>
         <RoleGuard roles={['staff', 'owner', 'manager', 'super_admin']}>
           {shouldShowModule('pos') && <NavItem href="/pos" icon={CreditCard} label={labelFor('pos')} />}
+          <NavItem href="/staff" icon={Clock3} label="Time Card" />
+        </RoleGuard>
+        <RoleGuard roles={['owner', 'manager', 'super_admin']}>
+          {shouldShowModule('reports') && <NavItem href="/reports" icon={BarChart3} label={labelFor('reports')} />}
         </RoleGuard>
 
         <RoleGuard roles={['owner', 'super_admin']}>
           <NavSection label="Admin" />
-          {shouldShowModule('reports') && <NavItem href="/reports" icon={BarChart3} label={labelFor('reports')} />}
           <RoleGuard roles={['super_admin']}>
             <NavItem href="/platform/companies" icon={Building2} label="Companies" />
           </RoleGuard>

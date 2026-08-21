@@ -1,6 +1,7 @@
 'use client';
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Flame, MapPin, Truck, Utensils, CalendarDays, Loader2 } from 'lucide-react';
 
 const input = 'w-full min-h-[52px] rounded-xl border border-line bg-coal px-4 text-base text-cream focus:border-ember focus:outline-none';
@@ -8,12 +9,13 @@ type Option = { id:string; name:string; type?:string };
 
 export default function StaffLogin() {
   const router = useRouter();
+  const supabase = createClientComponentClient();
   const [accounts,setAccounts]=useState<Option[]>([]), [locations,setLocations]=useState<Option[]>([]), [events,setEvents]=useState<Option[]>([]);
   const [accountId,setAccountId]=useState(''), [workType,setWorkType]=useState('restaurant'), [locationId,setLocationId]=useState(''), [eventId,setEventId]=useState('');
   const [code,setCode]=useState(''), [credential,setCredential]=useState(''), [trusted,setTrusted]=useState(false), [error,setError]=useState(''), [busy,setBusy]=useState(false);
   useEffect(()=>{ fetch('/api/staff/options',{cache:'no-store'}).then(r=>r.json()).then(x=>{setAccounts(x.accounts||[]); if(x.accounts?.length===1)setAccountId(x.accounts[0].id);}); },[]);
   useEffect(()=>{ if(!accountId)return;setError('');fetch(`/api/staff/options?account_id=${accountId}`,{cache:'no-store'}).then(async r=>({ok:r.ok,body:await r.json()})).then(({ok,body:x})=>{if(!ok){setLocations([]);setEvents([]);setError(x.error||'Locations could not be loaded.');return}setLocations(x.locations||[]);setEvents(x.events||[]);}); },[accountId]);
-  async function submit(e:FormEvent){e.preventDefault();setBusy(true);setError('');const r=await fetch('/api/staff/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({account_id:accountId,employee_code:code,credential,work_type:workType,location_id:workType==='event'?null:locationId,event_id:workType==='event'?eventId:null,trusted_device:trusted})});const x=await r.json();setBusy(false);if(!r.ok){setError(x.error);return;}router.push(x.must_set_pin?'/staff/setup-pin':'/staff');}
+  async function submit(e:FormEvent){e.preventDefault();setBusy(true);setError('');const r=await fetch('/api/staff/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({account_id:accountId,employee_code:code,credential,work_type:workType,location_id:workType==='event'?null:locationId,event_id:workType==='event'?eventId:null,trusted_device:trusted})});const x=await r.json();if(!r.ok){setBusy(false);setError(x.error);return;}if(x.must_set_pin){router.push('/staff/setup-pin');return;}if(x.app_token_hash){const {error:authError}=await supabase.auth.verifyOtp({token_hash:x.app_token_hash,type:'magiclink'});if(authError){setBusy(false);setError('You were clocked in, but the manager workspace could not be opened. Ask an owner to confirm your Team and Staff profiles use the same email.');return;}router.push('/dashboard');router.refresh();return;}router.push('/staff');}
   const types=[['restaurant','Restaurant',Utensils],['food_truck','Food Truck',Truck],['event','Event / Mobile',CalendarDays]] as const;
   return <main className="min-h-screen bg-coal px-4 py-8 text-cream flex items-center justify-center"><div className="w-full max-w-md">
     <div className="text-center mb-6"><span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-ember"><Flame className="h-7 w-7"/></span><h1 className="mt-3 text-3xl font-bold text-ember">Zig’s Kitchen</h1><p className="text-mist">Staff clock-in & access</p></div>
