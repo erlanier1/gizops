@@ -83,18 +83,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     getUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event, session) => {
         setUser(session?.user ?? null);
-        if (session?.user) {
+        if (!session?.user) {
+          setProfile(null);
+          return;
+        }
+        // Do not await another Supabase call inside the auth callback. Doing so
+        // can block verifyOtp and leave PIN users stuck on the login screen.
+        const userId = session.user.id;
+        setTimeout(async () => {
           const { data } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', session.user.id)
+            .eq('id', userId)
             .single();
           setProfile(data ?? null);
-        } else {
-          setProfile(null);
-        }
+        }, 0);
       }
     );
 
