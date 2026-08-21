@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAccountScope } from '@/lib/account-scope';
+import { ManagerClockCard } from '@/components/manager-clock-card';
 
 function fmtDate(d: string) {
   return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -33,7 +34,7 @@ function Spinner() {
 function DashboardContent() {
   const supabase = createClientComponentClient();
   const searchParams = useSearchParams();
-  const { profile, isStaff, isSuperAdmin } = useUser();
+  const { profile, isStaff, isManager, isSuperAdmin } = useUser();
   const { accounts, selectedAccount, selectedAccountId } = useAccountScope();
 
   const [permitOpen, setPermitOpen] = useState(false);
@@ -213,6 +214,8 @@ function DashboardContent() {
           </div>
         }
       />
+
+      {isManager && <ManagerClockCard />}
 
       {/* ── Staff simplified view ── */}
       {isStaff ? (
