@@ -50,12 +50,13 @@ Run these Supabase SQL files in this order:
 
 1. `supabase/business_profiles.sql`
 2. `supabase/contact_leads.sql`
-3. `supabase/purchase_receipts.sql`
-4. `supabase/seed_zigs_kitchen.sql`
+3. `supabase/tenant_data_scope.sql`
+4. `supabase/purchase_receipts.sql`
+5. `supabase/seed_zigs_kitchen.sql`
 
 `seed_zigs_kitchen.sql` creates Zig's Kitchen as the first company with all app modules enabled. After your auth user exists, update the final commented SQL statement with your Supabase auth user id to attach your login to Zig's Kitchen while keeping super admin access.
 
-`purchase_receipts.sql` creates the private receipt storage bucket, company-scoped receipt records, review statuses, and row-level security policies.
+`tenant_data_scope.sql` adds company ownership and row-level security to operational tables. `purchase_receipts.sql` creates the private receipt storage bucket, company-scoped receipt records, review statuses, and row-level security policies.
 
 ### Website Contact Intake
 

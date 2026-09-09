@@ -1,6 +1,6 @@
 # GizOps User Manual
 
-Last updated: August 20, 2026
+Last updated: August 28, 2026
 
 ## Purpose
 
@@ -655,14 +655,8 @@ Use only sender addresses from a verified Resend domain. If Resend DNS verificat
 
 ## Known Current Limitations
 
-Some older operational tables were created before the multi-company model. The `tenant_data_scope.sql` file adds company ownership columns to those tables.
+Operational create and edit workflows save the selected company `account_id`, and `tenant_data_scope.sql` applies company-aware row-level security to the operational tables. The app also includes a built-in Help page.
 
-The next build phase should make every create/edit workflow save the selected company `account_id` automatically. That will complete company-level data separation for all new records.
+Production use still depends on external service setup: the Supabase migrations must be applied, and Supabase, PayPal, and Resend credentials must be configured for the corresponding features. Without those credentials, authentication, persistence, payments, or email delivery cannot operate.
 
-Recommended next technical work:
-
-- Wire bookings, permits, documents, inventory, proposals, POS, and meal prep creates to the selected company.
-- Update table policies to enforce company-specific access everywhere.
-- Add report filters for dates and status.
-- Add a built-in Help/User Guide page inside the app.
-- Add company website contact form templates.
+Optional future enhancements include date and status filters for report exports and reusable company website contact-form templates.
