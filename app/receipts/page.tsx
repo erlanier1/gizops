@@ -518,7 +518,10 @@ export default function ReceiptsPage() {
                   ) : selectedReceipt.mime_type === 'application/pdf' ? (
                     <iframe src={previewUrl} title={`${selectedReceipt.vendor} receipt`} className="h-[520px] w-full" />
                   ) : (
-                    <img src={previewUrl} alt={`${selectedReceipt.vendor} receipt`} className="max-h-[520px] w-full object-contain" />
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element -- signed storage URLs are short-lived and cannot use the image optimizer */}
+                      <img src={previewUrl} alt={`${selectedReceipt.vendor} receipt`} className="max-h-[520px] w-full object-contain" />
+                    </>
                   )}
                 </div>
                 <div className="space-y-4">

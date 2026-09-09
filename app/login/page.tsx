@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Flame, Loader2, Clock, ArrowLeft, Mail } from 'lucide-react';
+import { Flame, Loader2, Clock, ArrowLeft, Mail, Eye, EyeOff } from 'lucide-react';
 
 // Shared input class — text-base (16px) prevents iOS zoom on focus
 const inp = 'w-full rounded-lg bg-coal border border-line px-4 py-3.5 text-base text-cream placeholder-mist/40 focus:border-ember focus:outline-none focus:ring-1 focus:ring-ember transition-colors min-h-[48px]';
@@ -22,6 +22,7 @@ function LoginContent() {
   // Sign-in state
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberEmail, setRememberEmail] = useState(true);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
@@ -177,7 +178,7 @@ function LoginContent() {
               ) : (
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   <p className="text-xs text-mist/70 -mt-1 mb-1">
-                    Enter your email and we'll send you a link to reset your password.
+                    Enter your email and we&apos;ll send you a link to reset your password.
                   </p>
                   <div>
                     <label htmlFor="reset-email" className="block text-xs font-medium text-mist mb-1.5">
@@ -239,16 +240,29 @@ function LoginContent() {
                   <label htmlFor="password" className="block text-xs font-medium text-mist mb-1.5">
                     Password
                   </label>
-                  <input
-                    id="password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className={inp}
-                  />
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      required
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className={`${inp} pr-12`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(visible => !visible)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      aria-pressed={showPassword}
+                      className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-lg text-mist/60 transition-colors hover:text-cream focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ember"
+                    >
+                      {showPassword
+                        ? <EyeOff className="h-4 w-4" aria-hidden="true" />
+                        : <Eye className="h-4 w-4" aria-hidden="true" />}
+                    </button>
+                  </div>
                 </div>
 
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-mist/70">

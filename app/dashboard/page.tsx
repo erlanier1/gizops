@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
@@ -30,7 +30,7 @@ function Spinner() {
 }
 
 function DashboardContent() {
-  const supabase = createClientComponentClient();
+  const supabase = useMemo(() => createClientComponentClient(), []);
   const searchParams = useSearchParams();
   const { profile, isStaff, isSuperAdmin } = useUser();
   const { accounts, selectedAccount, selectedAccountId } = useAccountScope();
@@ -131,7 +131,7 @@ function DashboardContent() {
     } finally {
       setLoading(false);
     }
-  }, [isSuperAdmin, profile?.account_id, selectedAccountId, supabase]);
+  }, [selectedAccountId, supabase]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -149,7 +149,7 @@ function DashboardContent() {
       {/* Access denied banner */}
       {accessDenied && (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-amber-900/30 border border-amber-700/50 px-4 py-3">
-          <p className="text-sm text-amber-200">You don't have permission to view that page.</p>
+          <p className="text-sm text-amber-200">You don&apos;t have permission to view that page.</p>
           <button onClick={() => setAccessDenied(false)} className="shrink-0 text-amber-400 hover:text-white transition-colors">
             <X className="h-4 w-4" />
           </button>
@@ -230,7 +230,7 @@ function DashboardContent() {
           {/* Today's deliveries — placeholder */}
           <div className="rounded-xl bg-smoke border border-line p-5">
             <h2 className="text-sm font-semibold text-cream flex items-center gap-2 mb-4">
-              <Flame className="h-4 w-4 text-ember" /> Today's Deliveries
+              <Flame className="h-4 w-4 text-ember" /> Today&apos;s Deliveries
             </h2>
             {loading ? <Spinner /> : data.todaysDeliveries.length === 0 ? <div className="flex flex-col items-center justify-center py-10 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-hover mb-3">
