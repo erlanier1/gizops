@@ -3,15 +3,31 @@
 import { useState, useEffect } from 'react';
 import { ModuleGate } from '@/components/ModuleGate';
 import { useAccountScope } from '@/lib/account-scope';
+import { useUser } from '@/lib/auth-context';
+
+function uniqueMenuItems(items) {
+  const seen = new Set();
+  return (Array.isArray(items) ? items : []).filter((item) => {
+    const key = `${String(item.name || '').trim().toLowerCase()}|${String(item.category || '').trim().toLowerCase()}|${Number(item.price).toFixed(2)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 export default function POSPage() {
   const { selectedAccountId } = useAccountScope();
+  const { canEdit } = useUser();
   const [menuItems, setMenuItems] = useState([]);
   const [cart, setCart] = useState([]);
   const [customerName, setCustomerName] = useState('');
   const [loading, setLoading] = useState(false);
   const [orderTotal, setOrderTotal] = useState(0);
   const [notice, setNotice] = useState(null);
+  const [editingItem, setEditingItem] = useState(null);
+  const [showItemForm, setShowItemForm] = useState(false);
+  const [savingItem, setSavingItem] = useState(false);
+  const [itemForm, setItemForm] = useState({ name: '', category: 'Entrees', price: '' });
 
   // Load menu items from database
   useEffect(() => {
@@ -20,7 +36,7 @@ export default function POSPage() {
         if (!selectedAccountId) { setMenuItems([]); return; }
         const response = await fetch(`/api/pos/menu-items?accountId=${encodeURIComponent(selectedAccountId)}`);
         const items = await response.json();
-        setMenuItems(items);
+        setMenuItems(uniqueMenuItems(items));
       } catch (error) {
         console.error('Failed to load menu:', error);
         // Fallback menu for offline
@@ -136,6 +152,53 @@ export default function POSPage() {
     }
   };
 
+  const openItemForm = (item = null) => {
+    setEditingItem(item);
+    setItemForm(item
+      ? { name: item.name, category: item.category || 'Entrees', price: String(item.price) }
+      : { name: '', category: 'Entrees', price: '' });
+    setShowItemForm(true);
+  };
+
+  const saveMenuItem = async (event) => {
+    event.preventDefault();
+    setSavingItem(true);
+    try {
+      const response = await fetch('/api/pos/menu-items', {
+        method: editingItem ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...itemForm, id: editingItem?.id, accountId: selectedAccountId }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not save item.');
+      setMenuItems((items) => editingItem ? items.map((item) => item.id === result.id ? result : item) : [...items, result]);
+      if (editingItem) setCart((items) => items.map((item) => item.id === result.id ? { ...item, ...result } : item));
+      setShowItemForm(false);
+      setNotice({ type: 'success', message: editingItem ? `${result.name} was updated.` : `${result.name} was added to the POS.` });
+    } catch (error) {
+      setNotice({ type: 'warning', message: error.message });
+    } finally {
+      setSavingItem(false);
+    }
+  };
+
+  const removeMenuItem = async (item) => {
+    if (!confirm(`Remove ${item.name} from the POS menu?`)) return;
+    try {
+      const response = await fetch('/api/pos/menu-items', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item.id, accountId: selectedAccountId }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not remove item.');
+      setMenuItems((items) => items.filter((entry) => entry.id !== item.id));
+      setCart((items) => items.filter((entry) => entry.id !== item.id));
+      setNotice({ type: 'success', message: `${item.name} was removed from the POS.` });
+    } catch (error) {
+      setNotice({ type: 'warning', message: error.message });
+    }
+  };
+
   return (
     <ModuleGate moduleKey="pos">
     <div className="pos-container">
@@ -159,17 +222,35 @@ export default function POSPage() {
       <main className="pos-main">
         {/* Menu Grid */}
         <section className="menu-section">
-          <h2>Menu Items</h2>
+          <div className="menu-heading">
+            <h2>Menu Items</h2>
+            {canEdit && <button className="manage-button" onClick={() => openItemForm()}>+ Add Item</button>}
+          </div>
+          {showItemForm && (
+            <form className="item-form" onSubmit={saveMenuItem}>
+              <h3>{editingItem ? 'Edit menu item' : 'Add menu item'}</h3>
+              <input aria-label="Item name" required maxLength={80} placeholder="Item name" value={itemForm.name} onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} />
+              <input aria-label="Category" required maxLength={50} placeholder="Category" value={itemForm.category} onChange={(e) => setItemForm({ ...itemForm, category: e.target.value })} />
+              <input aria-label="Price" required type="number" min="0" step="0.01" placeholder="Price" value={itemForm.price} onChange={(e) => setItemForm({ ...itemForm, price: e.target.value })} />
+              <div className="form-actions">
+                <button type="button" onClick={() => setShowItemForm(false)}>Cancel</button>
+                <button type="submit" disabled={savingItem}>{savingItem ? 'Saving...' : 'Save Item'}</button>
+              </div>
+            </form>
+          )}
           <div className="menu-grid">
             {menuItems.map((item) => (
-              <button
-                key={item.id}
-                className="menu-item"
-                onClick={() => addToCart(item)}
-              >
-                <div className="item-name">{item.name}</div>
-                <div className="item-price">${item.price.toFixed(2)}</div>
-              </button>
+              <div key={item.id} className="menu-item-wrap">
+                <button className="menu-item" onClick={() => addToCart(item)}>
+                  <div className="item-name">{item.name}</div>
+                  <div className="item-category">{item.category || 'Menu'}</div>
+                  <div className="item-price">${Number(item.price).toFixed(2)}</div>
+                </button>
+                {canEdit && <div className="item-actions">
+                  <button onClick={() => openItemForm(item)}>Edit</button>
+                  <button className="delete" onClick={() => removeMenuItem(item)}>Remove</button>
+                </div>}
+              </div>
             ))}
           </div>
         </section>
@@ -257,6 +338,10 @@ export default function POSPage() {
       <style jsx>{`
         .pos-container {
           min-height: 100vh;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
           background: #f5f5f5;
           display: flex;
           flex-direction: column;
@@ -334,6 +419,7 @@ export default function POSPage() {
           padding: 20px;
           flex: 1;
           overflow: hidden;
+          min-width: 0;
         }
 
         .menu-section,
@@ -352,6 +438,21 @@ export default function POSPage() {
           font-size: 20px;
           color: #333;
         }
+
+        .menu-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .manage-button { border: 0; border-radius: 6px; background: #ff6b35; color: white; padding: 9px 13px; font-weight: 700; cursor: pointer; }
+        .item-form { display: grid; grid-template-columns: 2fr 1fr 110px; gap: 8px; padding: 14px; margin-bottom: 14px; border: 1px solid #fed7aa; border-radius: 8px; background: #fff7ed; }
+        .item-form h3 { grid-column: 1 / -1; margin: 0 0 4px; color: #333; font-size: 15px; }
+        .item-form input { min-width: 0; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        .form-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
+        .form-actions button { border: 1px solid #ddd; border-radius: 6px; background: white; padding: 8px 12px; cursor: pointer; font-weight: 600; }
+        .form-actions button[type='submit'] { border-color: #ff6b35; background: #ff6b35; color: white; }
+        .menu-item-wrap { display: flex; flex-direction: column; min-width: 0; }
+        .menu-item-wrap .menu-item { width: 100%; flex: 1; }
+        .item-category { margin: -3px 0 7px; color: #777; font-size: 11px; }
+        .item-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 5px; }
+        .item-actions button { border: 1px solid #ddd; border-radius: 5px; background: white; padding: 6px; color: #555; cursor: pointer; font-size: 11px; font-weight: 700; }
+        .item-actions .delete { color: #b91c1c; }
 
         .customer-label {
           font-size: 12px;
@@ -568,13 +669,25 @@ export default function POSPage() {
         }
 
         @media (max-width: 900px) {
+          .pos-container { min-height: auto; }
+          .pos-header { align-items: flex-start; gap: 12px; padding: 16px; }
+          .pos-header h1 { font-size: 23px; }
+          .total-display { flex-shrink: 0; font-size: 14px; }
+          .total-display .amount { display: block; margin-left: 0; font-size: 20px; }
           .pos-main {
-            grid-template-columns: 1fr;
+            grid-template-columns: minmax(0, 1fr);
+            overflow: visible;
+            padding: 12px;
+            gap: 12px;
           }
+
+          .menu-section, .cart-section { min-width: 0; padding: 14px; }
 
           .menu-grid {
             grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
           }
+          .item-form { grid-template-columns: 1fr; }
+          .item-form h3, .form-actions { grid-column: 1; }
         }
       `}</style>
     </div>
