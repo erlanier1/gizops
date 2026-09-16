@@ -185,7 +185,7 @@ function DashboardContent() {
             : "Welcome to GizOps — your operations hub for Zig's Kitchen."
         }
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             <a
               href="/auth/signout"
               className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-medium text-mist hover:bg-hover hover:text-cream transition-colors"

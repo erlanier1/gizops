@@ -84,7 +84,7 @@ export function Sidebar() {
   const avatarColor = role ? (ROLE_COLOR[role] ?? '#8A7560') : '#8A7560';
 
   return (
-    <aside className="flex h-full w-full md:w-64 shrink-0 flex-col bg-sidebar border-r border-line">
+    <aside className="flex h-full min-h-0 w-full shrink-0 flex-col overflow-hidden border-r border-line bg-sidebar md:w-64">
       {/* Brand */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-line">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-ember shrink-0">
@@ -138,7 +138,7 @@ export function Sidebar() {
       )}
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-2">
+      <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2">
         <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" />
 
         {shouldShowModule('meal_prep') && (
@@ -189,7 +189,7 @@ export function Sidebar() {
       </nav>
 
       {/* User footer */}
-      <div className="border-t border-line px-4 py-4 space-y-3">
+      <div className="shrink-0 space-y-3 border-t border-line px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
         <div className="flex items-center gap-3">
           <div
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"

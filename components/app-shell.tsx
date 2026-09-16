@@ -8,24 +8,42 @@ import { Sidebar } from '@/components/sidebar';
 import { InactivityGuard } from '@/components/inactivity-guard';
 import { AccountScopeProvider } from '@/lib/account-scope';
 import { useAccountScope } from '@/lib/account-scope';
+import { useUser } from '@/lib/auth-context';
 
 const AUTH_ROUTES = ['/login', '/auth', '/staff'];
 
 function MobileHeader({ onOpen }: { onOpen: () => void }) {
-  const { selectedAccount } = useAccountScope();
+  const { accounts, selectedAccount, selectedAccountId, setSelectedAccountId } = useAccountScope();
+  const { isSuperAdmin } = useUser();
 
   return (
-    <header className="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-line bg-sidebar px-3 md:hidden">
-      <div className="flex min-w-0 items-center gap-2 text-cream">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ember"><Flame className="h-4 w-4 text-white" /></span>
-        <div className="min-w-0">
-          <span className="block text-xs font-bold leading-tight">GizOps</span>
-          <span className="block truncate text-[11px] leading-tight text-mist">{selectedAccount?.name ?? 'ACIRE Admin Portal'}</span>
+    <header className="shrink-0 border-b border-line bg-sidebar px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] md:hidden">
+      <div className="flex min-h-11 items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2 text-cream">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ember"><Flame className="h-4 w-4 text-white" /></span>
+          <div className="min-w-0">
+            <span className="block text-xs font-bold leading-tight">GizOps</span>
+            <span className="block truncate text-[11px] leading-tight text-mist">{selectedAccount?.name ?? 'ACIRE Admin Portal'}</span>
+          </div>
         </div>
+        <button type="button" aria-label="Open full dashboard navigation" onClick={onOpen} className="flex min-h-11 shrink-0 items-center gap-2 rounded-lg border border-line px-3 text-cream hover:bg-hover">
+          <span className="text-xs font-semibold">Menu</span><Menu className="h-5 w-5" />
+        </button>
       </div>
-      <button type="button" aria-label="Open navigation" onClick={onOpen} className="flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-2 text-cream hover:bg-hover">
-        <span className="text-xs font-semibold">Pages</span><Menu className="h-6 w-6" />
-      </button>
+      {isSuperAdmin && accounts.length > 0 && (
+        <label className="mt-1 flex items-center gap-2">
+          <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-mist">Workspace</span>
+          <select
+            aria-label="Company workspace"
+            value={selectedAccountId ?? ''}
+            onChange={event => setSelectedAccountId(event.target.value || null)}
+            className="min-w-0 flex-1 rounded-lg border border-line bg-coal px-2 py-2 text-sm text-cream focus:border-ember focus:outline-none"
+          >
+            <option value="">Admin Portal</option>
+            {accounts.map(account => <option key={account.id} value={account.id}>{account.name}{account.is_active ? '' : ' (inactive)'}</option>)}
+          </select>
+        </label>
+      )}
     </header>
   );
 }
@@ -57,7 +75,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div className="w-full min-w-0 max-w-full p-3 sm:p-5 md:p-6 lg:p-8">{children}</div>
             </main>
           </div>
-          {mobileOpen && <div className="fixed inset-0 z-50 md:hidden"><button type="button" aria-label="Close navigation" className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} /><div className="absolute inset-y-0 left-0 w-72 max-w-[88vw] shadow-2xl"><Sidebar /></div><button type="button" aria-label="Close navigation" onClick={() => setMobileOpen(false)} className="absolute left-[min(18rem,88vw)] top-2 flex min-h-11 min-w-11 items-center justify-center rounded-r-lg bg-sidebar text-cream"><X className="h-5 w-5" /></button></div>}
+          {mobileOpen && <div className="fixed inset-0 z-50 md:hidden"><button type="button" aria-label="Close navigation" className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} /><div className="absolute inset-y-0 left-0 w-[min(20rem,calc(100vw-2.75rem))] overflow-hidden shadow-2xl" onClick={event => { if ((event.target as HTMLElement).closest('a')) setMobileOpen(false); }}><Sidebar /></div><button type="button" aria-label="Close navigation" onClick={() => setMobileOpen(false)} className="absolute right-1 top-[max(0.5rem,env(safe-area-inset-top))] flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-sidebar text-cream shadow-lg"><X className="h-5 w-5" /></button></div>}
         </div>
       </AccountScopeProvider>
     </InactivityGuard>
