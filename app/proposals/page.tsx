@@ -22,6 +22,7 @@ import { ManagerAndAbove, OwnerOnly } from '@/components/RoleGuard';
 import { useBusinessProfile, type BusinessProfile } from '@/lib/business-profile';
 import { ModuleGate } from '@/components/ModuleGate';
 import { useAccountScope } from '@/lib/account-scope';
+import { PricingEstimator } from '@/components/proposals/pricing-estimator';
 
 type ProposalStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired';
 
@@ -332,6 +333,21 @@ export default function ProposalsPage() {
     setForm({ ...emptyForm, proposal_number: nextProposalNumber() });
   };
 
+  const applyEstimate = ({ guestCount, total, deposit, summary }: { guestCount: number; total: number; deposit: number; summary: string }) => {
+    setForm(previous => ({
+      ...previous,
+      guest_count: guestCount > 0 ? guestCount.toString() : previous.guest_count,
+      total_amount: total.toFixed(2),
+      deposit_amount: deposit.toFixed(2),
+      notes: previous.notes.includes('\n\nPricing estimate for ')
+        ? `${previous.notes.slice(0, previous.notes.indexOf('\n\nPricing estimate for ')).trim()}\n\n${summary}`.trim()
+        : previous.notes.startsWith('Pricing estimate for ')
+          ? summary
+          : previous.notes.trim() ? `${previous.notes.trim()}\n\n${summary}` : summary,
+    }));
+    setToast({ message: 'Estimate added to the proposal.', type: 'success' });
+  };
+
   const saveProposal = async () => {
     if (!form.client_name.trim()) {
       setToast({ message: 'Client name is required.', type: 'error' });
@@ -478,6 +494,8 @@ export default function ProposalsPage() {
               Clear
             </button>
           </div>
+
+          <PricingEstimator initialGuestCount={form.guest_count} eventDescription={form.menu_summary} eventLocation={form.event_location} onApply={applyEstimate} />
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
