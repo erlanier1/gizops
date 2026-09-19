@@ -495,7 +495,7 @@ export default function ProposalsPage() {
             </button>
           </div>
 
-          <PricingEstimator initialGuestCount={form.guest_count} eventDescription={form.menu_summary} eventLocation={form.event_location} onApply={applyEstimate} />
+          <PricingEstimator initialGuestCount={form.guest_count} eventDescription={form.menu_summary} eventLocation={form.event_location} eventDate={form.event_date} onApply={applyEstimate} />
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="md:col-span-2">

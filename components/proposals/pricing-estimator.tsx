@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Calculator, Check, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { AlertCircle, Calculator, Check, ChevronDown, ChevronUp, Loader2, Sparkles } from 'lucide-react';
 
 type EstimateValues = { guestCount: number; total: number; deposit: number; summary: string };
-type Props = { initialGuestCount?: string; eventDescription?: string; eventLocation?: string; onApply: (estimate: EstimateValues) => void };
+type Props = { initialGuestCount?: string; eventDescription?: string; eventLocation?: string; eventDate?: string; onApply: (estimate: EstimateValues) => void };
 type ServiceStyle = 'dropoff' | 'buffet' | 'family' | 'plated' | 'cocktail';
 type MenuLevel = 'simple' | 'standard' | 'premium';
 type Tier = { name: string; description: string; foodRate: number; staff: number; labor: number; rentals: number; markup: number; serviceCharge: number; tax: number; total: number; deposit: number };
@@ -24,7 +24,7 @@ function inferredStyle(description: string): ServiceStyle {
   return 'buffet';
 }
 
-export function PricingEstimator({ initialGuestCount = '', eventDescription = '', eventLocation = '', onApply }: Props) {
+export function PricingEstimator({ initialGuestCount = '', eventDescription = '', eventLocation = '', eventDate = '', onApply }: Props) {
   const [open, setOpen] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
   const [guests, setGuests] = useState(initialGuestCount);
@@ -35,9 +35,27 @@ export function PricingEstimator({ initialGuestCount = '', eventDescription = ''
   const [otherCosts, setOtherCosts] = useState('0');
   const [taxPercent, setTaxPercent] = useState('0');
   const [depositPercent, setDepositPercent] = useState('30');
+  const [analyzing, setAnalyzing] = useState(false);
+  const [aiResult, setAiResult] = useState<{ analysis: string; missingInformation: string[]; confidence: string } | null>(null);
+  const [aiError, setAiError] = useState('');
 
   useEffect(() => setGuests(initialGuestCount), [initialGuestCount]);
   useEffect(() => { if (eventDescription) setServiceStyle(inferredStyle(eventDescription)); }, [eventDescription]);
+
+  const analyzeEvent = async () => {
+    setAnalyzing(true); setAiError(''); setSelected(null);
+    try {
+      const response = await fetch('/api/pricing-estimate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guestCount: guests, eventDescription, eventLocation, eventDate }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'AI analysis failed.');
+      const result = data.analysis;
+      setServiceStyle(result.serviceStyle); setMenuLevel(result.menuLevel);
+      setDuration(String(result.eventHours)); setTravel(String(result.travelEstimate)); setOtherCosts(String(result.otherFixedCosts));
+      setTaxPercent(String(result.taxPercent)); setDepositPercent(String(result.depositPercent));
+      setAiResult({ analysis: result.analysis, missingInformation: result.missingInformation, confidence: result.confidence });
+    } catch (error) { setAiError(error instanceof Error ? error.message : 'AI analysis failed.'); }
+    finally { setAnalyzing(false); }
+  };
 
   const estimates = useMemo<Tier[]>(() => {
     const guestCount = Math.round(number(guests));
@@ -89,7 +107,14 @@ export function PricingEstimator({ initialGuestCount = '', eventDescription = ''
       {open ? <ChevronUp className="h-4 w-4 text-mist" /> : <ChevronDown className="h-4 w-4 text-mist" />}
     </button>
     {open && <div className="border-t border-line px-4 py-4">
-      <div className="mb-3 flex items-center gap-2 text-xs text-mist"><Sparkles className="h-3.5 w-3.5 text-ember" />Uses the proposal guest count and menu notes. Adjust these assumptions for the event.</div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs text-mist"><Sparkles className="h-3.5 w-3.5 text-ember" />Uses the proposal guest count, location, date, and menu notes.</div>
+        <button type="button" onClick={analyzeEvent} disabled={analyzing || (!number(guests) && !eventDescription.trim())} className="inline-flex items-center gap-2 rounded-lg border border-ember/50 bg-ember/10 px-3 py-2 text-xs font-semibold text-ember hover:bg-ember/20 disabled:cursor-not-allowed disabled:opacity-50">
+          {analyzing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}{analyzing ? 'Analyzing event…' : 'Analyze event with AI'}
+        </button>
+      </div>
+      {aiError && <div className="mb-3 flex gap-2 rounded-lg border border-red-800/50 bg-red-950/20 px-3 py-2 text-xs text-red-400"><AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{aiError}</div>}
+      {aiResult && <div className="mb-4 rounded-lg border border-ember/30 bg-coal px-3 py-3 text-xs leading-5 text-mist"><div className="flex items-center justify-between gap-3"><p className="font-semibold text-cream">AI event analysis</p><span className="rounded-full border border-line px-2 py-0.5 text-[10px] uppercase">{aiResult.confidence} confidence</span></div><p className="mt-1">{aiResult.analysis}</p>{aiResult.missingInformation.length > 0 && <p className="mt-2"><span className="font-medium text-cream">Confirm before quoting:</span> {aiResult.missingInformation.join(' · ')}</p>}</div>}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <NumberField label="Guests" value={guests} onChange={setGuests} step="1" />
         <SelectField label="Service style" value={serviceStyle} onChange={value => setServiceStyle(value as ServiceStyle)} options={Object.entries(styleLabels)} />
