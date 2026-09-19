@@ -1,9 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import {
   CalendarDays,
+  Camera,
   Copy,
   Download,
   FileSignature,
@@ -13,6 +15,7 @@ import {
   Save,
   Search,
   Send,
+  ReceiptText,
   Trash2,
   Users,
 } from 'lucide-react';
@@ -243,6 +246,7 @@ function buildProposalHtml(form: ProposalForm, business: BusinessProfile) {
 }
 
 export default function ProposalsPage() {
+  const router = useRouter();
   const supabase = createClientComponentClient();
   const { business } = useBusinessProfile();
   const { selectedAccountId } = useAccountScope();
@@ -253,6 +257,8 @@ export default function ProposalsPage() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [extractingPhoto, setExtractingPhoto] = useState(false);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
   const [usesLocalStorage, setUsesLocalStorage] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -346,6 +352,48 @@ export default function ProposalsPage() {
           : previous.notes.trim() ? `${previous.notes.trim()}\n\n${summary}` : summary,
     }));
     setToast({ message: 'Estimate added to the proposal.', type: 'success' });
+  };
+
+  const importProposalPhoto = async (file?: File) => {
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 7_000_000) {
+      setToast({ message: 'Use a JPG, PNG, or WebP photo under 7 MB.', type: 'error' }); return;
+    }
+    setExtractingPhoto(true);
+    try {
+      const image = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(new Error('The photo could not be read.')); reader.readAsDataURL(file); });
+      const response = await fetch('/api/proposals/extract-photo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image }) });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'The photo could not be analyzed.');
+      const item = body.proposal;
+      setForm(previous => ({ ...previous,
+        client_name: item.clientName || previous.client_name, client_email: item.clientEmail || previous.client_email, client_phone: item.clientPhone || previous.client_phone,
+        event_date: item.eventDate || previous.event_date, event_time: item.eventTime || previous.event_time, event_location: item.eventLocation || previous.event_location,
+        guest_count: item.guestCount > 0 ? String(item.guestCount) : previous.guest_count, menu_summary: item.menuAndEventDetails || previous.menu_summary,
+        total_amount: item.totalAmount > 0 ? String(item.totalAmount) : previous.total_amount, deposit_amount: item.depositAmount > 0 ? String(item.depositAmount) : previous.deposit_amount,
+        notes: [previous.notes, item.internalNotes, item.uncertainFields?.length ? `Review from photo: ${item.uncertainFields.join(', ')}` : ''].filter(Boolean).join('\n\n'),
+      }));
+      setToast({ message: 'Event sheet imported. Review every field before saving.', type: 'success' });
+    } catch (error) { setToast({ message: error instanceof Error ? error.message : 'Photo import failed.', type: 'error' }); }
+    finally { setExtractingPhoto(false); }
+  };
+
+  const createDraftInvoice = async () => {
+    if (!selectedAccountId || !form.client_name.trim() || toNumber(form.total_amount) <= 0) { setToast({ message: 'Add a client name and proposal total first.', type: 'error' }); return; }
+    setCreatingInvoice(true);
+    try {
+      const response = await fetch('/api/invoices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        account_id: selectedAccountId, customer_name: form.client_name.trim(), customer_email: form.client_email.trim() || null,
+        event_date: form.event_date || null, guest_count: form.guest_count ? Math.round(toNumber(form.guest_count)) : null,
+        event_location: form.event_location.trim() || null, service_type: 'Catering', description: form.menu_summary.trim() || `Catering proposal ${form.proposal_number}`,
+        subtotal: toNumber(form.total_amount), discount_amount: 0, sales_tax_rate: 0, sales_tax_amount: 0, amount: toNumber(form.total_amount), credit_card_fee: 0,
+        deposit_amount: Math.min(toNumber(form.deposit_amount), toNumber(form.total_amount)), amount_paid: 0, due_date: form.due_date || null,
+        provider: 'credit_card', provider_reference: null, payment_url: null, status: 'draft', notes: `Created from proposal ${form.proposal_number}.${form.notes ? `\n\n${form.notes}` : ''}`,
+      }) });
+      const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Invoice could not be created.');
+      setToast({ message: 'Draft invoice created. Opening invoices…', type: 'success' }); window.setTimeout(() => router.push('/invoices'), 600);
+    } catch (error) { setToast({ message: error instanceof Error ? error.message : 'Invoice could not be created.', type: 'error' }); }
+    finally { setCreatingInvoice(false); }
   };
 
   const saveProposal = async () => {
@@ -495,6 +543,15 @@ export default function ProposalsPage() {
             </button>
           </div>
 
+          <div className="mb-5 rounded-xl border border-dashed border-ember/50 bg-ember/5 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-semibold text-cream">Start from a paper event sheet</p><p className="mt-1 text-xs text-mist">Take a photo or upload one. AI will fill the proposal for your review—it will not save or send automatically.</p></div>
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-ember/50 bg-ember/10 px-3 py-2 text-xs font-semibold text-ember hover:bg-ember/20">
+                {extractingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}{extractingPhoto ? 'Reading photo…' : 'Take or upload photo'}
+                <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" disabled={extractingPhoto} onChange={event => { importProposalPhoto(event.target.files?.[0]); event.currentTarget.value = ''; }} className="sr-only" />
+              </label>
+            </div>
+          </div>
+
           <PricingEstimator initialGuestCount={form.guest_count} eventDescription={form.menu_summary} eventLocation={form.event_location} eventDate={form.event_date} onApply={applyEstimate} />
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -560,8 +617,9 @@ export default function ProposalsPage() {
               <input id="deposit_amount" type="number" min="0" step="0.01" className={inputClass} value={form.deposit_amount} onChange={event => set('deposit_amount', event.target.value)} />
             </div>
             <div className="md:col-span-2">
-              <label htmlFor="menu_summary" className={labelClass}>Menu and service summary</label>
-              <textarea id="menu_summary" className={`${inputClass} min-h-[110px] resize-none`} value={form.menu_summary} onChange={event => set('menu_summary', event.target.value)} placeholder="Menu, service style, staffing, rentals, travel, or special requests..." />
+              <label htmlFor="menu_summary" className={labelClass}>Menu, service, and event requirements</label>
+              <textarea id="menu_summary" className={`${inputClass} min-h-[150px] resize-none`} value={form.menu_summary} onChange={event => set('menu_summary', event.target.value)} placeholder="Include menu and dietary needs; service style; event duration; kitchen and event staffing; setup and cleanup; rentals and equipment; serving supplies; delivery and travel; venue access; and special requests." />
+              <p className="mt-1.5 text-[11px] leading-4 text-mist/60">More complete details produce a more reliable AI analysis and pricing range.</p>
             </div>
             <div className="md:col-span-2">
               <label htmlFor="service_terms" className={labelClass}>Contract terms</label>
@@ -585,6 +643,9 @@ export default function ProposalsPage() {
             <button type="button" onClick={copyEmailDraft} className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium text-mist hover:bg-hover hover:text-cream transition-colors">
               <Mail className="h-4 w-4" />
               Copy Email
+            </button>
+            <button type="button" onClick={createDraftInvoice} disabled={creatingInvoice} className="inline-flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium text-mist hover:bg-hover hover:text-cream disabled:opacity-60 transition-colors">
+              {creatingInvoice ? <Loader2 className="h-4 w-4 animate-spin" /> : <ReceiptText className="h-4 w-4" />}Create Draft Invoice
             </button>
           </div>
         </section>

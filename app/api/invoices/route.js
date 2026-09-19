@@ -29,6 +29,10 @@ export async function POST(req) {
 
     if (error) throw error;
 
+    if (data.status === 'draft') {
+      return Response.json({ invoice: data, email: { sent: false, error: null } });
+    }
+
     if (!data.customer_email) {
       return Response.json({ invoice: data, email: { sent: false, error: 'No customer email was provided.' } });
     }
