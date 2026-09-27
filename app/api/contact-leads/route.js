@@ -1,5 +1,12 @@
 import { Resend } from 'resend';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const RATE_LIMIT_MAX = 5;
+const DUPLICATE_WINDOW_MS = 30 * 60 * 1000;
+const MIN_FORM_FILL_MS = 2500;
+const MAX_FORM_AGE_MS = 24 * 60 * 60 * 1000;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,7 +39,75 @@ function cleanList(value) {
 }
 
 function isEmail(value) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function asBoolean(value) {
+  if (typeof value === 'boolean') return value;
+  return ['true', '1', 'yes', 'on'].includes(clean(value).toLowerCase());
+}
+
+function getClientIp(req) {
+  return clean(req.headers.get('x-forwarded-for')).split(',')[0].trim()
+    || clean(req.headers.get('x-real-ip'))
+    || 'unknown';
+}
+
+function hashClientIp(req) {
+  const salt = process.env.LEAD_SPAM_SALT || process.env.SUPABASE_SERVICE_ROLE_KEY || 'gizops-leads';
+  return createHash('sha256').update(`${salt}:${getClientIp(req)}`).digest('hex');
+}
+
+function hasTooManyLinks(value) {
+  return (clean(value).match(/(?:https?:\/\/|www\.|\b[a-z0-9-]+\.(?:com|net|org|io|xyz|top|click)\b)/gi) || []).length > 2;
+}
+
+function hasSuspiciousText(value) {
+  const text = clean(value);
+  if (!text) return false;
+  return hasTooManyLinks(text)
+    || /(.)\1{14,}/.test(text)
+    || /\b(?:crypto investment|casino bonus|guest post|seo services|backlinks?|loan approval)\b/i.test(text);
+}
+
+function constantTimeMatch(actual, expected) {
+  const actualBuffer = Buffer.from(clean(actual));
+  const expectedBuffer = Buffer.from(clean(expected));
+  return actualBuffer.length === expectedBuffer.length && timingSafeEqual(actualBuffer, expectedBuffer);
+}
+
+function looksLikeBrowserForm(data) {
+  return clean(data.source).toLowerCase() === 'website';
+}
+
+function screenSubmission(body) {
+  const data = getFormIoData(body);
+
+  // Real visitors never see or fill this field. Return a generic success for bots.
+  if (clean(data.fax_number || data.faxNumber)) {
+    return { blocked: true, reason: 'honeypot' };
+  }
+
+  if (looksLikeBrowserForm(data)) {
+    const startedAt = Number(data.form_started_at || data.formStartedAt);
+    const elapsed = Date.now() - startedAt;
+    if (Number.isFinite(startedAt) && (elapsed < MIN_FORM_FILL_MS || elapsed > MAX_FORM_AGE_MS)) {
+      return { blocked: true, reason: 'invalid_form_timing' };
+    }
+  }
+
+  const combinedText = [data.message, data.comments, data.notes, data.details, data.description].join(' ');
+  if (hasSuspiciousText(combinedText)) {
+    return { blocked: true, reason: 'suspicious_content' };
+  }
+
+  return { blocked: false };
+}
+
+function validateWebhookSecret(req, body) {
+  const expected = process.env.LEAD_WEBHOOK_SECRET;
+  if (!expected || !body?.data) return true;
+  return constantTimeMatch(req.headers.get('x-gizops-lead-secret'), expected);
 }
 
 function normalizeSource(value, fallback) {
@@ -118,7 +193,7 @@ function normalizeLeadPayload(body, req) {
     serviceInterest: firstClean(data.serviceInterest, data.service_interest, data.service, data.interest, data.projectType, data.project_type, eventType, body.serviceInterest, body.service_interest),
     message: eventSummary,
     source: normalizeSource(firstClean(data.source, body.source), body.data ? 'form_io' : 'formspree'),
-    consentToContact: data.consentToContact ?? data.consent_to_contact ?? data.consent ?? body.consentToContact ?? body.consent_to_contact ?? true,
+    consentToContact: asBoolean(data.consentToContact ?? data.consent_to_contact ?? data.consent ?? body.consentToContact ?? body.consent_to_contact ?? true),
     formIoSubmissionId,
     rawData: body,
   };
@@ -155,6 +230,12 @@ async function notifyBusiness({ business, lead }) {
 }
 
 async function saveLead(body, req) {
+  const screening = screenSubmission(body);
+  if (screening.blocked) {
+    console.warn('Blocked suspected lead spam.', { reason: screening.reason });
+    return { success: true, filtered: true };
+  }
+
   const {
     accountSlug,
     contactName,
@@ -177,6 +258,16 @@ async function saveLead(body, req) {
     return { error: 'A valid email address is required.', status: 400 };
   }
 
+  if (
+    contactName.length > 120
+    || phone.length > 40
+    || companyName.length > 160
+    || serviceInterest.length > 160
+    || message.length > 5000
+  ) {
+    return { error: 'One or more fields exceed the allowed length.', status: 400 };
+  }
+
   const { data: account, error: accountError } = await supabaseAdmin
     .from('accounts')
     .select('id, is_active, business_profiles ( business_name, contact_email )')
@@ -189,6 +280,46 @@ async function saveLead(body, req) {
 
   if (!account.is_active) {
     return { error: 'Company account is not active.', status: 403 };
+  }
+
+
+  const ipHash = hashClientIp(req);
+  const rateLimitStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
+  const { count: recentIpCount, error: rateLimitError } = await supabaseAdmin
+    .from('contact_leads')
+    .select('id', { count: 'exact', head: true })
+    .eq('account_id', account.id)
+    .eq('metadata->>ip_hash', ipHash)
+    .gte('created_at', rateLimitStart);
+
+  if (rateLimitError) {
+    console.error('Lead rate-limit check failed.', rateLimitError);
+  } else if ((recentIpCount ?? 0) >= RATE_LIMIT_MAX) {
+    return { error: 'Too many requests. Please wait a few minutes and try again.', status: 429 };
+  }
+
+  const duplicateStart = new Date(Date.now() - DUPLICATE_WINDOW_MS).toISOString();
+  const { data: recentMatches, error: duplicateError } = await supabaseAdmin
+    .from('contact_leads')
+    .select('id, created_at, message')
+    .eq('account_id', account.id)
+    .eq('email', email)
+    .gte('created_at', duplicateStart)
+    .limit(10);
+
+  if (duplicateError) {
+    console.error('Lead duplicate check failed.', duplicateError);
+  } else {
+    const duplicate = recentMatches?.find(item => clean(item.message) === clean(message));
+    if (duplicate) {
+      return {
+        success: true,
+        duplicate: true,
+        leadId: duplicate.id,
+        createdAt: duplicate.created_at,
+        emailNotification: { sent: false, reason: 'An identical recent submission already exists.' },
+      };
+    }
   }
 
   if (formIoSubmissionId) {
@@ -221,6 +352,7 @@ async function saveLead(body, req) {
     message: message || null,
     consent_to_contact: Boolean(consentToContact),
     metadata: {
+      ip_hash: ipHash,
       user_agent: req.headers.get('user-agent'),
       referer: req.headers.get('referer'),
       form_io: formIoSubmissionId ? { submission_id: formIoSubmissionId } : null,
@@ -261,6 +393,9 @@ async function saveLead(body, req) {
 export async function POST(req) {
   try {
     const body = await parseLeadRequest(req);
+    if (!validateWebhookSecret(req, body)) {
+      return json({ error: 'Invalid webhook credentials.' }, 401);
+    }
     const submissions = getSubmissions(body);
 
     if (submissions.length > 1) {

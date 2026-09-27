@@ -28,6 +28,8 @@ Website contact intake and email notifications use:
 
 - `RESEND_API_KEY` - Resend API key for outbound email notifications.
 - `CONTACT_FROM_EMAIL` - verified sender address for contact lead notifications and fallback app emails.
+- `LEAD_SPAM_SALT` - a long random value used to hash visitor IP addresses for privacy-preserving lead rate limits.
+- `LEAD_WEBHOOK_SECRET` - optional shared secret for Form.io webhook imports, sent in the `X-GizOps-Lead-Secret` header.
 - `INVITE_FROM_EMAIL` - optional verified sender address for GizOps user invitations.
 
 PayPal payments require a PayPal REST app:
