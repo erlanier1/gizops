@@ -11,6 +11,7 @@ import { useAccountScope } from '@/lib/account-scope';
 import { useUser } from '@/lib/auth-context';
 
 type LeadStatus = 'new' | 'contacted' | 'quoted' | 'booked' | 'closed' | 'spam';
+type LeadView = 'active' | 'addressed' | 'spam' | 'all';
 
 type ContactLead = {
   id: string;
@@ -27,6 +28,14 @@ type ContactLead = {
 };
 
 const statusOptions: LeadStatus[] = ['new', 'contacted', 'quoted', 'booked', 'closed', 'spam'];
+const activeStatuses: LeadStatus[] = ['new', 'contacted', 'quoted'];
+const addressedStatuses: LeadStatus[] = ['booked', 'closed'];
+const leadViews: { value: LeadView; label: string }[] = [
+  { value: 'active', label: 'Active' },
+  { value: 'addressed', label: 'Addressed' },
+  { value: 'spam', label: 'Spam' },
+  { value: 'all', label: 'All' },
+];
 const inputClass = 'rounded-lg bg-coal border border-line px-3 py-2 text-sm text-cream focus:border-ember focus:outline-none focus:ring-1 focus:ring-ember transition-colors';
 
 function formatDate(value: string) {
@@ -46,7 +55,7 @@ export default function ContactsPage() {
   const { selectedAccount, selectedAccountId } = useAccountScope();
   const [leads, setLeads] = useState<ContactLead[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<'all' | LeadStatus>('all');
+  const [leadView, setLeadView] = useState<LeadView>('active');
   const [savingStatus, setSavingStatus] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -95,9 +104,18 @@ export default function ContactsPage() {
   }, [selectedAccountId, supabase]);
 
   const filteredLeads = useMemo(() => {
-    if (statusFilter === 'all') return leads;
-    return leads.filter(lead => lead.status === statusFilter);
-  }, [leads, statusFilter]);
+    if (leadView === 'active') return leads.filter(lead => activeStatuses.includes(lead.status));
+    if (leadView === 'addressed') return leads.filter(lead => addressedStatuses.includes(lead.status));
+    if (leadView === 'spam') return leads.filter(lead => lead.status === 'spam');
+    return leads;
+  }, [leads, leadView]);
+
+  const viewCounts = useMemo<Record<LeadView, number>>(() => ({
+    active: leads.filter(lead => activeStatuses.includes(lead.status)).length,
+    addressed: leads.filter(lead => addressedStatuses.includes(lead.status)).length,
+    spam: leads.filter(lead => lead.status === 'spam').length,
+    all: leads.length,
+  }), [leads]);
 
   const updateStatus = async (lead: ContactLead, status: LeadStatus) => {
     setSavingStatus(prev => ({ ...prev, [lead.id]: true }));
@@ -113,6 +131,11 @@ export default function ContactsPage() {
     }
 
     setLeads(prev => prev.map(item => item.id === lead.id ? { ...item, status } : item));
+    if (status === 'booked' || status === 'closed') {
+      setToast({ message: `${lead.contact_name || 'Lead'} moved to Addressed.`, type: 'success' });
+    } else if (status === 'spam') {
+      setToast({ message: `${lead.contact_name || 'Lead'} moved to Spam.`, type: 'success' });
+    }
   };
 
   return (
@@ -138,16 +161,6 @@ export default function ContactsPage() {
               </div>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <select
-                className={inputClass}
-                value={statusFilter}
-                onChange={event => setStatusFilter(event.target.value as 'all' | LeadStatus)}
-              >
-                <option value="all">All statuses</option>
-                {statusOptions.map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
               <button
                 type="button"
                 onClick={fetchLeads}
@@ -157,6 +170,30 @@ export default function ContactsPage() {
                 Refresh
               </button>
             </div>
+          </div>
+
+          <div className="flex gap-1 overflow-x-auto border-b border-line px-4 pt-3" role="tablist" aria-label="Lead views">
+            {leadViews.map(view => {
+              const selected = leadView === view.value;
+              return (
+                <button
+                  key={view.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  onClick={() => setLeadView(view.value)}
+                  className={`mb-[-1px] inline-flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${selected
+                    ? 'border-ember text-cream'
+                    : 'border-transparent text-mist/60 hover:text-mist'
+                  }`}
+                >
+                  {view.label}
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${selected ? 'bg-ember/20 text-ember' : 'bg-coal text-mist/50'}`}>
+                    {viewCounts[view.value]}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {loading ? (
