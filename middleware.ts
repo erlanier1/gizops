@@ -56,7 +56,11 @@ async function getActiveProfile(
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
-  const { data: { session } } = await supabase.auth.getSession();
+  // Validate the user with Supabase on each protected navigation. Unlike
+  // getSession(), getUser() refreshes an expired access token and writes the
+  // renewed auth cookies to `res`, preventing an open dashboard from being
+  // redirected to login when the next page is selected.
+  const { data: { user } } = await supabase.auth.getUser();
   const path = req.nextUrl.pathname;
 
   if (path === '/auth/signout') {
@@ -64,8 +68,8 @@ export async function middleware(req: NextRequest) {
   }
 
   let activeProfile: ActiveProfile | null = null;
-  if (session) {
-    activeProfile = await getActiveProfile(session.user.id, supabase);
+  if (user) {
+    activeProfile = await getActiveProfile(user.id, supabase);
   }
 
   // Auth helper routes, including password reset links, must stay reachable even
@@ -79,12 +83,12 @@ export async function middleware(req: NextRequest) {
   if (PUBLIC_ROUTES.some((r) => path.startsWith(r))) {
     if (path.startsWith('/staff')) return res;
     if (path === '/login' && req.nextUrl.searchParams.get('force') === '1') return res;
-    if (session && activeProfile) return NextResponse.redirect(new URL('/dashboard', req.url));
+    if (user && activeProfile) return NextResponse.redirect(new URL('/dashboard', req.url));
     return res;
   }
 
   // All other routes require authentication
-  if (!session) {
+  if (!user) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 

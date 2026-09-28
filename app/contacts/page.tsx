@@ -49,7 +49,7 @@ function formatDate(value: string) {
 }
 
 export default function ContactsPage() {
-  const supabase = createClientComponentClient();
+  const supabase = useMemo(() => createClientComponentClient(), []);
   const { labelFor } = useEnabledModules();
   const { isSuperAdmin } = useUser();
   const { selectedAccount, selectedAccountId } = useAccountScope();
