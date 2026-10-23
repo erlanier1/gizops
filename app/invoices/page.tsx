@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { BadgeDollarSign, Copy, Download, ExternalLink, Loader2, Mail, Pencil, Plus, RefreshCw, X } from 'lucide-react';
+import { RateQuantityCalculator } from '@/components/rate-quantity-calculator';
 import { CustomerPicker } from '@/components/customer-picker';
 import { PageHeader } from '@/components/page-header';
 import { Toast } from '@/components/ui/toast';
@@ -355,6 +356,7 @@ export default function InvoicesPage() {
             <label className="text-xs font-medium text-mist">Guest count<input min="1" step="1" type="number" className={`${inputClass} mt-1.5`} value={form.guestCount} onChange={event => setForm({ ...form, guestCount: event.target.value })} placeholder="Number of guests" /></label>
             <label className="text-xs font-medium text-mist">Event location<input className={`${inputClass} mt-1.5`} value={form.eventLocation} onChange={event => setForm({ ...form, eventLocation: event.target.value })} placeholder="Venue or full address" /></label>
             <label className="text-xs font-medium text-mist">Service type<input className={`${inputClass} mt-1.5`} value={form.serviceType} onChange={event => setForm({ ...form, serviceType: event.target.value })} placeholder="Catering, food truck, delivery..." /></label>
+            <RateQuantityCalculator key={editingInvoice?.id || 'new'} onSubtotalChange={amount => setForm(previous => ({ ...previous, amount }))} />
             <label className="text-xs font-medium text-mist">Event subtotal (USD)<span className="relative mt-1.5 block"><span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-mist">$</span><input required min="0.01" step="0.01" type="number" inputMode="decimal" className={`${inputClass} pl-7`} value={form.amount} onChange={event => setForm({ ...form, amount: event.target.value })} placeholder="0.00" /></span></label>
             <label className="text-xs font-medium text-mist">Discount (USD)<span className="relative mt-1.5 block"><span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-mist">$</span><input min="0" step="0.01" type="number" inputMode="decimal" className={`${inputClass} pl-7`} value={form.discountAmount} onChange={event => setForm({ ...form, discountAmount: event.target.value })} placeholder="0.00" /></span></label>
             <label className="text-xs font-medium text-mist">Sales tax rate<span className="relative mt-1.5 block"><input min="0" max="100" step="0.01" type="number" inputMode="decimal" className={`${inputClass} pr-8`} value={form.salesTaxRate} onChange={event => setForm({ ...form, salesTaxRate: event.target.value })} placeholder="0.00" /><span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-mist">%</span></span></label>
