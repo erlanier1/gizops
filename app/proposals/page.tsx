@@ -19,6 +19,7 @@ import {
   Trash2,
   Users,
 } from 'lucide-react';
+import { CustomerPicker } from '@/components/customer-picker';
 import { PageHeader } from '@/components/page-header';
 import { Toast } from '@/components/ui/toast';
 import { ManagerAndAbove, OwnerOnly } from '@/components/RoleGuard';
@@ -556,7 +557,8 @@ export default function ProposalsPage() {
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
-              <label htmlFor="booking_id" className={labelClass}>Start from booking</label>
+              <CustomerPicker accountId={selectedAccountId!} onSelect={contact => setForm(previous => ({ ...previous, client_name: contact.name, client_email: contact.email }))} />
+                <label htmlFor="booking_id" className={labelClass}>Start from booking</label>
               <select id="booking_id" className={inputClass} value={form.booking_id} onChange={event => applyBooking(event.target.value)}>
                 <option value="">Manual proposal</option>
                 {bookings.map(booking => (
