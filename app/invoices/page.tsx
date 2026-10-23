@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { BadgeDollarSign, Copy, Download, ExternalLink, Loader2, Mail, Pencil, Plus, RefreshCw, X } from 'lucide-react';
+import { CustomerPicker } from '@/components/customer-picker';
 import { PageHeader } from '@/components/page-header';
 import { Toast } from '@/components/ui/toast';
 import { useAccountScope } from '@/lib/account-scope';
@@ -346,6 +347,7 @@ export default function InvoicesPage() {
       {showForm && selectedAccountId && (
         <form id="invoice-editor" onSubmit={createInvoice} className="mb-6 scroll-mt-4 rounded-xl border-2 border-ember/60 bg-smoke p-5 shadow-lg shadow-ember/10">
           <div className="mb-4 flex items-center gap-2"><BadgeDollarSign className="h-5 w-5 text-ember" /><h2 className="font-semibold text-cream">{editingInvoice ? `Edit ${invoiceLabel(editingInvoice.invoice_number)}` : 'New Invoice'}</h2></div>
+          <CustomerPicker accountId={selectedAccountId} onSelect={contact => setForm(previous => ({ ...previous, customerName: contact.name, customerEmail: contact.email }))} />
           <div className="grid gap-4 md:grid-cols-2">
             <label className="text-xs font-medium text-mist">Customer name<input required className={`${inputClass} mt-1.5`} value={form.customerName} onChange={event => setForm({ ...form, customerName: event.target.value })} /></label>
             <label className="text-xs font-medium text-mist">Customer email<input type="email" className={`${inputClass} mt-1.5`} value={form.customerEmail} onChange={event => setForm({ ...form, customerEmail: event.target.value })} /></label>
